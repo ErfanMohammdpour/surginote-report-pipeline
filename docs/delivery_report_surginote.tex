@@ -1,0 +1,260 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% گزارش تحویلی — ماژول گزارش SurgiNote (ورود اکسل، JSON، Gemini اختیاری)
+% نیاز به کامپایل با XeLaTeX به‌علت فونت فارسی و بسته xepersian
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{tikz}
+\usepackage{setspace}
+\usepackage{xepersian}
+
+\settextfont{Amiri}
+\setlatintextfont{DejaVu Sans}
+\setdigitfont{Amiri}
+\linespread{1.35}
+\pagestyle{fancy}
+\setlength{\headheight}{18pt}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\fancyhead[R]{گزارش ماژول گزارش دیجیتال}
+\fancyhead[L]{\lr{SurgiNote Report — ARAS}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\definecolor{mainblue}{HTML}{127C9E}
+\definecolor{deepblue}{HTML}{1F4E79}
+\definecolor{softblue}{HTML}{EAF5FA}
+\definecolor{softgold}{HTML}{D8A25E}
+\hypersetup{colorlinks=true,linkcolor=deepblue,urlcolor=deepblue}
+
+\titleformat{\section}{\Large\bfseries\color{mainblue}}{\thesection}{0.75em}{}
+\titleformat{\subsection}{\large\bfseries\color{deepblue}}{\thesubsection}{0.75em}{}
+\setlist[itemize]{rightmargin=1.2em}
+\setlist[enumerate]{rightmargin=1.4em}
+
+\newtcolorbox{mybox}[1][]{
+  enhanced,
+  colback=softblue,
+  colframe=mainblue,
+  boxrule=0.8pt,
+  arc=3mm,
+  left=3mm,right=3mm,top=2mm,bottom=2mm,
+  breakable,
+  #1
+}
+
+\begin{document}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+\vspace*{0.8cm}
+{\Large\bfseries\color{deepblue}پیش‌فعالیت / تسک فنی واحد مهندسی}\\[0.3cm]
+{\Huge\bfseries\color{mainblue}ماژول ورود داده و تولید گزارش}\\[0.35cm]
+{\large \lr{SurgiNote Excel Ingest \(\rightarrow\) Structured Multi-Stage JSON Report \(\rightarrow\) Optional Gemini Narrative}}
+
+\vspace{1cm}
+
+\begin{tikzpicture}
+\fill[softblue,rounded corners=8pt] (0,0) rectangle (12,2.4);
+\draw[mainblue,line width=0.8pt,rounded corners=8pt] (0,0) rectangle (12,2.4);
+\node at (6,1.55) {\Large \textbf{نام: عرفان محمدپور}};
+\node at (6,0.72) {\large پوشهٔ پروژه: \lr{\texttt{pre-task/2}} — \textbf{نسخه سرویس: 1.3.0}};
+\end{tikzpicture}
+
+\vfill
+
+\begin{mybox}[colback=white,colframe=softgold]
+\centering
+این گزارش، بازنگری کامل و تحویلیِ پیاده‌سازی \textbf{مسیر رسمی پیشنهادی بدون عامل}%
+(\lr{no agent MVP per Task2}: پارس اکسل، پرچم تناقض، قالب چندمرحله‌ای در \lr{JSON}؛ \lr{LLM} محدود و اختیاری برای روایت)
+است: دریافت خروجی \lr{SurgiNote}، اعتبارسنجی، ذخیرهٔ خام و رابطه‌ای، تحلیل حدّی، پرچم تناقض، ساخت یک فایل \lr{JSON} ساخت‌یافته با چند سکشن؛ و یک گام اختیاری اما عملیاتی: تبدیل آن \lr{JSON} به مارک‌داون بالینی داستان‌محور با \lr{Gemini Developer API}.
+\end{mybox}
+
+\vfill
+{\large تاریخ تهیه: \textcolor{deepblue}{\lr{2026-05-15}} بر اساس آنچه در مخزن کد ثبت شده است.}
+\vspace{0.5cm}
+
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{مقدمه و تطابق با دستورکار تسک}
+طبق دستورکار تسک (نسخه متنی موجود در مخزن / فایل \lr{PDF}) باید پیاده‌شود:\\
+\textbf{(۱) ورود و ذخیره:} اندپوینت بارگذاری، پارس و اعتبارسنجی، نگاشت، ذخیرهٔ \lr{raw} و استخراج سطرهای طبیعی‌شدهٔ پنل‌های ویدیو، فازها، مهارت‌ها و کامنت‌ها.\\
+\textbf{(۲) تحلیل اولیه:} میانگین نمرهٔ هر مهارت؛ منطق تناقض «نمره بالا با مارکر منفی/هشدار».\\
+\textbf{(۳) چند مرحله در یک \lr{JSON}:} خلاصه فازها؛ تحلیل نمره با متن قالبی؛ خط زمانی کامنت‌ها؛ بخش پرچم‌ها.\\
+\textbf{(۴) بدون ابزار پیچیده یا برنامه‌ریزی عاملی.}
+
+\begin{mybox}
+\textbf{خلاصه نتیجه:} هر چهار مورد به‌صورت ماژول \lr{\texttt{app/application/report\_pipeline.py}} و \lr{\texttt{app/application/analytics.py}} و اندپوینت‌های زیر مجموعهٔ \lr{\texttt{/v1}} پیاده کرده‌شد؛ روایت با \lr{Gemini} \emph{جدای از الزام MVP} است اما آمادهٔ تولید و تست واقعی با کلید \lr{.env}.
+\end{mybox}
+
+\section{استک تکنیکی و نقش هر جزء}
+\begin{itemize}
+  \item \textbf{\lr{FastAPI}} — لایهٔ \lr{HTTP}، بازآموزندهٔ باز \lr{(OpenAPI 3.1)}، اعتبارسنجی ورودی/خروج با \lr{Pydantic}.
+  \item \textbf{\lr{SQLite} + SQLAlchemy} — مخزن \lr{cases} با \lr{raw\_payload}؛ جداول فازها، مهارت‌ها، کامنت‌ها، گزارش‌های ذخیره‌شده.
+  \item \textbf{\lr{pandas + openpyxl}} — پارس پنج شیٔنام استاندارد \lr{xlsx}، فیلتر سطرهای جمع مهارت‌ها.
+  \item \textbf{\lr{httpx}} — کلاینت \lr{REST} خام به \lr{generativelanguage.googleapis.com/v1beta} برای \lr{Gemini}.
+  \item \textbf{\lr{pydantic-settings}} — خواندن \lr{.env} از ریشهٔ قطعی ریپو (نه الزاماً \lr{cwd} پوسته)، پیشوند \lr{SN\_*} و کلیدهای \lr{GEMINI\_*}.
+\end{itemize}
+
+\section{لایه‌ها (معماری داخل مخزن)}
+\begin{enumerate}
+  \item \textbf{\lr{domain}} — ارورهای دامنه، بدون وابستگی به فریمورک.
+  \item \textbf{\lr{application}} — \lr{ingest.py}، \lr{analytics.py}، \lr{report\_pipeline.py}، \lr{narrative.py}.
+  \item \textbf{\lr{infrastructure}} — پارسر اکسل، مدل‌ها، سشن، مخزن، \lr{llm/gemini\_rest.py}.
+  \item \textbf{\lr{api}} — \lr{router.py}، \lr{schemas.py}، \lr{locale\_util.py}.
+\end{enumerate}
+
+\section{متغیرهای محیطی مهم (\lr{.env.example})}
+\begin{longtable}{@{}>{\lr}p{5.2cm}p{10cm}@{}}
+\toprule
+کلید در فایل & معنی مختصر فارسی\\
+\midrule
+\lr{SN\_DATABASE\_URL} & مسیر پیش‌فرض \lr{sqlite} زیر ریشه پروژه.\\
+\lr{SN\_REPORT\_LOCALE} & پیش‌فرض زبان قالب روایت داخل \lr{JSON} و زمان پیش‌فرض روایت؛ \lr{en} یا \lr{fa}.\\
+\lr{SN\_FLAG\_POLICY} & سیاست پیوند مارکرهای منفی (پیش‌فرض \lr{phase\_window\_then\_case\_wide}).\\
+\lr{SN\_CONTRADICTION\_SCORE\_RATIO\_THRESHOLD} & آستانه نسبت امتیاز (پیش‌فرض \lr{0.8}).\\
+\lr{GEMINI\_API\_KEY} & کلید الزامی برای هر سه اندپوینت روایت؛ بدون کلید پاسخ \lr{400} با کد مشخص اپ.\\
+\lr{GEMINI\_MODEL} & شناسه مدل پیش‌فرض (مثال پایدار کاربر واقعی در گزارش: \lr{gemini-2.5-flash}).\\
+\bottomrule
+\end{longtable}
+
+\section{جدول کامل اندپوینت‌های وب}
+\begin{center}
+\setlength{\tabcolsep}{3pt}\footnotesize
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.4cm}>{\centering\arraybackslash}p{1.2cm}>{\raggedright\arraybackslash}p{9.6cm}@{}}
+\toprule
+\textbf{مسیر} & \textbf{متد} & \textbf{ورودی / خروجی و رفتار}\\
+\midrule
+\endfirsthead
+\bottomrule
+\endfoot
+\lr{/healthz} &
+\lr{GET} &
+پاسخ ساده زنده بودن؛ مثلاً \texttt{\{\"ok\": true\}}.\\
+
+\lr{/v1/imports} &
+\lr{POST} &
+\lr{multipart} فیلد \lr{upload} با اکسل؛ کوئری اختیاری \lr{locale=en|fa} فقط جهت نشان‌دادن \lr{default\_report\_locale}؛ خروجی: \lr{case\_id}، \lr{warnings}؛ همان لحظه دادهٔ خام در \lr{cases.raw\_payload} ذخیره می‌شود.\\
+
+\lr{/v1/cases/\{case\_id\}} &
+\lr{GET} &
+کل کیس نرمال‌شده شامل فازها، مهارت‌ها، کامنت‌ها، زمان‌ها و شاشهٔ ویدئو؛ \lr{404} اگر ناموجود باشد.\\
+
+\lr{/v1/cases/\{case\_id\}/reports/generate} &
+\lr{POST} &
+کوئری \lr{persist=true|false} پیش‌فرض \lr{true}؛ کوئری \lr{locale} بازنویسی قالب بخش‌های متنی \lr{JSON}؛ بازگرداندن \texttt{report} با \texttt{schema\_version=1.3.0} و \texttt{meta.report\_locale}؛ شناسهٔ ردیف ذخیره در \texttt{persisted\_report\_id}.\newline
+خطای \texttt{invalid\_locale} برای مقادیر غیر \lr{en/fa}.\\
+
+\lr{/v1/cases/\{case\_id\}/reports/latest} &
+\lr{GET} &
+آخرین گزارش ذخیره‌شدهٔ همان کیس؛ \lr{404} اگر هرگز ذخیره نشده.\\
+
+\lr{/v1/narratives/generate} &
+\lr{POST} &
+بدنه: \texttt{report} کل آبجکت؛ \texttt{locale} الزاماً \lr{en} یا \lr{fa}؛ اختیاری \texttt{include\_provider\_raw} برای دیباگ خرو خام \lr{Gemini}.\\
+
+\lr{/v1/narratives/generate-from-report} &
+\lr{POST} &
+همان بدنهٔ «فقط کل گزارش» برای جلوگیری از نقص \lr{PowerShell ConvertTo-Json}. کوئری \lr{locale}، \lr{include\_provider\_raw}، متن دستورکار اضافه؛ پیش‌فرض زبان از \lr{SN\_REPORT\_LOCALE}.\\
+
+\lr{/v1/cases/\{case\_id\}/narratives/generate} &
+\lr{POST} &
+اگر گزارش پایدار در دیتابیس باشد و \texttt{prefer\_persisted\_report=true}: همان \lr{snapshot} قبلی می‌آید؛ اگر باشد اولین بار بدون ذخیره، گزارش تازه از دیت با \texttt{locale} بدنه ساخته می‌شود.\\
+
+\end{longtable}
+\end{center}
+
+\noindent
+\textbf{شناسنامهٔ باز \lr{OpenAPI}:} نسخه \lr{3.1.0}؛ هشت مسیر فهرست‌شدهٔ زنگ‌زده در تاریخ این گزارش:\\
+\texttt{/healthz}،
+\texttt{/v1/imports}،
+\texttt{/v1/cases/\{case\_id\}}،
+\texttt{/v1/cases/\{case\_id\}/reports/generate}،
+\texttt{/v1/cases/\{case\_id\}/reports/latest}،
+\texttt{/v1/narratives/generate}،
+\texttt{/v1/narratives/generate-from-report}،
+\texttt{/v1/cases/\{case\_id\}/narratives/generate}.
+
+\section{محتوای اصلی \lr{JSON} گزارش (نسخه \lr{1.3.0})}
+\begin{itemize}
+  \item \texttt{meta}: شامل \textbf{\texttt{schema\_version}}, \textbf{\texttt{report\_locale}}, نام ویدئو، طول مدت زمان‌ها، ورژن خروجی، زمان ساخت UTC، خط‌مشی پرچم و آستانه نسبتی.
+  \item \texttt{sections.phase\_summary.items}: هر فاز با بازهٔ نمایش زمان، فریم‌ها، توضیح، روش احتمالاً فاکویی؛ داده خام بالینی انگلیسی از ابزار باقی می‌ماند.
+  \item \texttt{sections.score\_analysis}: میانگین مهارت هر فاز؛ \texttt{score\_narrative} به زبان خواست‌شدهٔ قالب.
+  \item \texttt{sections.comments\_timeline}: مرتب‌شدهٔ زمانی، زمان‌ها حفظ.
+  \item \texttt{sections.contradictions.flags}: شامل کد انگلیسی \lr{(برای پارسرها)}؛ یاداشت‌های انسانی روی بعضی پیوندهها در \texttt{locale=fa}.
+  \item \texttt{quality.limitations}: سطرهای حقوق بالینی عمومی فارسی یا انگلیسی بسته به \texttt{report\_locale}.
+\end{itemize}
+
+\section{جریان عملی پیشنهادی و نمونه فرمان‌ها}
+\subsection{اجرای لوکال}
+\begin{tcolorbox}[colframe=mainblue,colback=white,breakable,title=\lr{PowerShell}]
+\noindent\lr{\footnotesize\texttt{cd pre-task\textbackslash 2}}\\
+\noindent\lr{\footnotesize\texttt{python -m venv .venv}}\\
+\noindent\lr{\footnotesize\texttt{.{\textbackslash}.venv{\textbackslash}Scripts{\textbackslash}Activate.ps1}}\\
+\noindent\lr{\footnotesize\texttt{pip install -r requirements.txt}}\\
+\noindent\lr{\footnotesize\texttt{python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000}}
+\end{tcolorbox}
+
+\subsection{اعتبار دستی خودکار با \lr{pytest}}
+تست‌ها پایگاه‌دادهٔ مجزا تحت \lr{tests/\_pytest.sqlite} می‌سازند (\lr{pytest\_configure} + \lr{TestClient} به‌صورت کانتکست). خروجی واقعی نمونه (\lr{pytest tests -q}) روی ماشین تهیهٔ گزارش:
+
+\begin{tcolorbox}[colframe=softgold,colback=white,breakable,title=\lr{pytest}]
+\lr{\ttfamily\scriptsize\texttt{4 passed in 1.37s}}\\
+\noindent\rule{\linewidth}{0.2pt}\\[1mm]
+{\small\textit{هشدار پلاگین جانبی \lr{nameko} ممکن است چاپ شود؛ نتیجه تست‌ها سبز است؛ می‌توانی \lr{--suppress-nameko-eventlet-notification} بگذاری یا \lr{PYTHONWARNINGS=ignore}.}}
+\end{tcolorbox}
+
+\subsection{مسیر دستی پیشنهادی (بازتولید \lr{report\_last.json})}
+اسکریپت موجود \texttt{scripts/smoke\_test.ps1}: سلامتی، آپلود تست کمینه یا فایل تمرینی، کشیدن \lr{cases}، زدن \lr{/reports/generate}، کشیدن \lr{/reports/latest} و نوشتن \texttt{report\_last.json}.
+
+\subsection{\lr{Narrative} با \texttt{curl} از فایل (پیشنهاد مطمئن روی ویندوز)}
+\begin{tcolorbox}[colframe=mainblue,colback=white,breakable,title=\lr{curl.exe (بدنهٔ تکی فایل JSON)}]
+\noindent\lr{\footnotesize\texttt{curl.exe -sS -X POST "http://127.0.0.1:8000/v1/narratives/generate-from-report?locale=en"}}\\
+\noindent\lr{\footnotesize\texttt{\ \ -H "Content-Type: application/json"}}\\
+\noindent\lr{\footnotesize\texttt{\ \ --data-binary "@.{\textbackslash}report\_last.json"}}
+\end{tcolorbox}
+خروجی تیپیک موفق: بدنه شامل \textbf{\texttt{"markdown"}} (متن)، \textbf{\texttt{"model"}} (شناسه حقیقی بکار رفته مثلاً \lr{gemini-2.5-flash})، و \textbf{\texttt{"finish\_reason":"STOP"}}.\\
+در صورت \textbf{\lr{429}} از طرف گوکل: ظرف حساب؛ در صورت \textbf{\lr{404}} اسم مدل اشتباه برای \lr{v1beta}؛ قبل از هر چیز بررسی \lr{\texttt{/v1beta/models?key=\dots}} جهت تأیید فهرست.
+
+\section{مشکلاتی که واقعاً پیش آمدند و تصمیم مهندسی}
+\begin{itemize}
+  \item بارگذاری \lr{.env} وابسته به \lr{cwd} بود ⇒ رفع با مسیر قطعی کنار ماژول \lr{config}.
+  \item \lr{PowerShell Invoke-RestMethod + ConvertTo-Json} گاهی بدنهٔ پارس‌شدنی نشان نمی‌داد ⇒ اندپوینت کمکی \textbf{\lr{/v1/narratives/generate-from-report}} تا بدنه فقط کل گزارش باشد؛ کوئری برای گزینه‌ها.
+  \item ظرف مدل؛ مدل پیش‌فرض ریپو به \textbf{\lr{gemini-2.5-flash}} نزد به‌روز واقعی جهت کمینه‌کردن خطای \lr{NOT\_FOUND}.
+  \item بین جملات غیر فارسی موجود در ستون انگلیسی خروجی ابزار و فارسیٔ قالب داخلی مخلوط پیش می‌آید؛ فرانت خودش برچسب زبان جدا نشان می‌دهد.
+\end{itemize}
+
+\section{خلاصه فایل‌های اسناد همراه}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\lr{README.md} & متن قرارداد فنی انگلیسی + جدول \lr{API}.\\
+\lr{CHECKLIST.md} & تیک دستی تأیید نهایی.\\
+\lr{docs/prompts/*.md} & ساختار پیشنهادی حرف با مدل جهت بازتبدیل همین \lr{JSON}.\\
+\texttt{.env.example} & الگوی متغیرها با هشدار امنیت کلید.\\
+\texttt{report\_last.json} در ریشهٔ کاری دستی کاربر؛ در \lr{.gitignore}؛ نمونهٔ خروجی \lr{/reports/generate}.\\
+\bottomrule
+\end{tabularx}
+
+\vfill
+\textbf{نوتیف فنی تهیه گزارش:} این پروندهٔ \lr{.tex} باید با \textbf{\lr{xelatex}} (معمولا دو بار برای فهرست) ساخته شود تا بستهٔ \textbf{\lr{xepersian}} و فونت \lr{Amiri} خطی نشکنند؛ اگر \lr{font} روی دستگاه موجود نباشد خط «فونت» می‌گیری ⇒ از نصب کامل تک‌لایو یا دانلود \lr{.ttf فونت} استفاده کن.
+
+\end{document}
