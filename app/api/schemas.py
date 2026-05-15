@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -9,6 +9,10 @@ from pydantic import BaseModel, Field
 class ImportResponse(BaseModel):
     case_id: str = Field(description="Stable case id for follow-up API calls")
     warnings: list[str] = Field(default_factory=list)
+    default_report_locale: Literal["en", "fa"] = Field(
+        default="en",
+        description="Resolved locale for this response (query `locale` or server `SN_REPORT_LOCALE`); use on POST …/reports/generate.",
+    )
 
 
 class PhaseDTO(BaseModel):
@@ -65,7 +69,7 @@ class NarrativeRequest(BaseModel):
     """Same structured report JSON shape as POST /v1/cases/{id}/reports/generate returns."""
 
     report: dict[str, Any]
-    locale: str = Field(default="en", description="Locale tag for wording hints (default English)")
+    locale: Literal["en", "fa"] = Field(default="en", description="LLM output language (and rebuild hint when generating JSON from DB)")
     extra_instructions: str | None = Field(default=None, description="Optional extra instructions for the model")
     include_provider_raw: bool = Field(
         default=False,
@@ -74,7 +78,7 @@ class NarrativeRequest(BaseModel):
 
 
 class CaseNarrativeRequest(BaseModel):
-    locale: str = "en"
+    locale: Literal["en", "fa"] = Field(default="en", description="Rebuilds structured JSON from DB in this locale when not using a persisted report; also sets LLM Markdown language.")
     extra_instructions: str | None = None
     prefer_persisted_report: bool = Field(
         default=True,
@@ -86,6 +90,6 @@ class CaseNarrativeRequest(BaseModel):
 class NarrativeResponse(BaseModel):
     markdown: str
     model: str
-    locale: str
+    locale: Literal["en", "fa"]
     finish_reason: str | None = None
     provider_raw: dict[str, Any] | None = None

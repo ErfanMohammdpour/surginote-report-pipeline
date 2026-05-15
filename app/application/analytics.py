@@ -30,6 +30,12 @@ def _marker_in_phase(ts: float | None, p_start: float | None, p_end: float | Non
     return p_start <= ts <= p_end
 
 
+_CASE_WIDE_NOTES = {
+    "en": "No negative marker fell inside phase time window — case-wide linkage heuristic. Human review required.",
+    "fa": "هیچ نشانگر منفی‌ای در بازهٔ زمانی این فاز نبود؛ اتصال سراسری (case-wide) اعمال شده است. بازبینی انسانی لازم است.",
+}
+
+
 def compute_flags_for_case(
     *,
     phases: list[dict],
@@ -37,6 +43,7 @@ def compute_flags_for_case(
     comments: list[dict],
     score_ratio_threshold: float,
     policy: str,
+    report_locale: str = "en",
 ) -> list[FlagRecord]:
     neg_markers = [c for c in comments if _is_negative(str(c.get("comment_type") or ""))]
     flags: list[FlagRecord] = []
@@ -103,7 +110,7 @@ def compute_flags_for_case(
                         "video_time_display": m0.get("video_time_display"),
                         "title": m0.get("title"),
                         "text": m0.get("text"),
-                        "notes": "No negative marker fell inside phase time window — case-wide linkage heuristic.",
+                        "notes": _CASE_WIDE_NOTES.get(report_locale, _CASE_WIDE_NOTES["en"]),
                     },
                     linkage="case_wide",
                     human_review_required=True,

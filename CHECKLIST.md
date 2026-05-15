@@ -52,10 +52,11 @@ Use this as acceptance tracking. Tick items when verified.
 | # | Item | Done |
 |---|------|------|
 | 4.1 | `phase_summary` with preserved times/frames | ☐ |
-| 4.2 | `score_analysis` + `score_narrative` (English template) | ☐ |
+| 4.2 | `score_analysis` + `score_narrative` (`en`|`fa` templates via `locale`) | ☐ |
 | 4.3 | `comments_timeline` sorted, timestamps preserved | ☐ |
 | 4.4 | `contradictions.flags` wired from analytics | ☐ |
 | 4.5 | `meta.schema_version` bumped on breaking JSON changes | ☐ |
+| 4.6 | `meta.report_locale` + `SN_REPORT_LOCALE`; invalid `locale` query → `400 invalid_locale` | ☐ |
 
 ---
 

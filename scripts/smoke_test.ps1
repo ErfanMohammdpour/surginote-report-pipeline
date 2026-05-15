@@ -52,3 +52,7 @@ Write-Host ("latest persisted_report_id: {0}, schema in payload: {1}" -f $latest
 
 Write-Host "`nDone. Full last report JSON saved to: report_last.json" -ForegroundColor Green
 $latest.report | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $PSScriptRoot "..\report_last.json") -Encoding UTF8
+
+$reportPath = Join-Path $PSScriptRoot "..\report_last.json" | Resolve-Path
+Write-Host "`nOptional narrative (needs GEMINI_API_KEY in server env). Prefer raw body endpoint:" -ForegroundColor DarkGray
+Write-Host ('  curl.exe -sS -X POST "{0}/v1/narratives/generate-from-report?locale=en" -H "Content-Type: application/json" --data-binary "@{1}"' -f $BaseUrl, $reportPath.Path) -ForegroundColor DarkGray

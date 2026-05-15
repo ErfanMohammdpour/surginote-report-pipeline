@@ -10,7 +10,7 @@ from app.config import settings
 from app.infrastructure.database import models
 
 
-REPORT_SCHEMA_VERSION = "1.2.0"
+REPORT_SCHEMA_VERSION = "1.3.0"
 
 
 def _skills_means(case: models.CaseORM) -> list[dict]:
@@ -42,7 +42,7 @@ def _overall(skills_mean: list[dict]) -> dict | None:
     return {"average_score": round(msum / len(skills_mean), 3), "reference_max_score": mx_max}
 
 
-def _phase_performance_lines(case: models.CaseORM, skills_mean: list[dict]) -> list[str]:
+def _phase_performance_lines(case: models.CaseORM, skills_mean: list[dict], locale: str) -> list[str]:
     by_phase: dict[str, list[dict]] = defaultdict(list)
     for row in skills_mean:
         by_phase[row["phase"]].append(row)
@@ -51,12 +51,20 @@ def _phase_performance_lines(case: models.CaseORM, skills_mean: list[dict]) -> l
         rows = by_phase[ph]
         avg = round(sum(r["mean_score"] for r in rows) / len(rows), 2)
         mx = rows[0]["max_score"]
-        lines.append(f"In phase «{ph}», mean skill score is about {avg} out of {mx}.")
+        if locale == "fa":
+            lines.append(f"در فاز «{ph}»، میانگین امتیاز مهارت‌ها حدود {avg} از {mx} است.")
+        else:
+            lines.append(f"In phase «{ph}», mean skill score is about {avg} out of {mx}.")
     ov = _overall(skills_mean)
     if ov:
-        lines.append(
-            f"Overall mean of per-skill means is about {ov['average_score']} out of {ov['reference_max_score']}."
-        )
+        if locale == "fa":
+            lines.append(
+                f"میانگین کل میانگین‌های هر مهارت حدود {ov['average_score']} از {ov['reference_max_score']} است."
+            )
+        else:
+            lines.append(
+                f"Overall mean of per-skill means is about {ov['average_score']} out of {ov['reference_max_score']}."
+            )
     return lines
 
 
@@ -103,7 +111,7 @@ def flags_to_payload(flags: list[FlagRecord]) -> list[dict]:
     ]
 
 
-def build_json_report(case: models.CaseORM) -> dict:
+def build_json_report(case: models.CaseORM, locale: str = "en") -> dict:
     skills_mean = _skills_means(case)
     overall = _overall(skills_mean)
 
@@ -143,15 +151,24 @@ def build_json_report(case: models.CaseORM) -> dict:
         ],
         score_ratio_threshold=settings.contradiction_score_ratio_threshold,
         policy=settings.flag_policy,
+        report_locale=locale,
     )
 
-    limits = []
-    limits.append("Derived from video annotations only; not a formal operative note.")
-    limits.append("If export columns or tool version change, version the parser; export_version is in meta.")
+    if locale == "fa":
+        limits = [
+            "صرفاً بر پایهٔ حاشیه‌نویسی ویدیو؛ معادل گزارش عمل جراحی رسمی نیست.",
+            "در صورت تغییر خروجی اکسل یا نسخهٔ ابزار، پارسر را نسخه‌گذاری کنید؛ نسخهٔ export در meta است.",
+        ]
+    else:
+        limits = [
+            "Derived from video annotations only; not a formal operative note.",
+            "If export columns or tool version change, version the parser; export_version is in meta.",
+        ]
 
     payload = {
         "meta": {
             "schema_version": REPORT_SCHEMA_VERSION,
+            "report_locale": locale,
             "export_version": case.export_version,
             "video_id": case.video_id,
             "video_name": case.video_name,
@@ -169,7 +186,7 @@ def build_json_report(case: models.CaseORM) -> dict:
             "score_analysis": {
                 "overall": overall,
                 "per_skill_means": skills_mean,
-                "score_narrative": "\n".join(_phase_performance_lines(case, skills_mean)),
+                "score_narrative": "\n".join(_phase_performance_lines(case, skills_mean, locale)),
             },
             "comments_timeline": _comment_items(case),
             "contradictions": {"flags": flags_to_payload(flags)},

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import io
+from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
+from app.api.locale_util import resolve_report_locale
 from app.api.schemas import (
     CaseDetailResponse,
     CaseNarrativeRequest,
@@ -19,6 +21,7 @@ from app.api.schemas import (
 from app.application.ingest import ingest_excel_upload
 from app.application.narrative import synthesize_markdown_report
 from app.application.report_pipeline import REPORT_SCHEMA_VERSION, build_json_report
+from app.config import settings
 from app.domain.errors import DomainError, ParseError
 from app.infrastructure.database.models import CaseORM
 from app.infrastructure.llm.gemini_rest import GeminiError
@@ -77,7 +80,14 @@ def get_router() -> APIRouter:
         )
 
     @r.post("/imports", response_model=ImportResponse)
-    async def imports_post(upload: UploadFile = File(...), session: Session = Depends(db)):
+    async def imports_post(
+        upload: UploadFile = File(...),
+        locale: str | None = Query(
+            None,
+            description="Preferred report locale (`en`|`fa`) for follow-up calls; not stored on the case.",
+        ),
+        session: Session = Depends(db),
+    ):
         if not upload.filename or not upload.filename.lower().endswith((".xlsx", ".xlsm")):
             raise HTTPException(status_code=400, detail={"code": "invalid_extension", "message": "only xlsx/xlsm"})
         try:
@@ -86,7 +96,8 @@ def get_router() -> APIRouter:
         except ParseError as e:
             raise HTTPException(status_code=422, detail={"code": "parse_error", "message": str(e)}) from e
 
-        return ImportResponse(case_id=case_id, warnings=parsed.warnings)
+        rl = resolve_report_locale(locale, settings.report_locale)
+        return ImportResponse(case_id=case_id, warnings=parsed.warnings, default_report_locale=rl)
 
     @r.get("/cases/{case_id}", response_model=CaseDetailResponse)
     def cases_get(case_id: str, session: Session = Depends(db)):
@@ -99,14 +110,23 @@ def get_router() -> APIRouter:
         return case_to_detail(c)
 
     @r.post("/cases/{case_id}/reports/generate", response_model=ReportEnvelope)
-    def reports_generate(case_id: str, persist: bool = True, session: Session = Depends(db)):
+    def reports_generate(
+        case_id: str,
+        locale: str | None = Query(
+            None,
+            description="Structured report template language (`en`|`fa`); default `SN_REPORT_LOCALE`.",
+        ),
+        persist: bool = True,
+        session: Session = Depends(db),
+    ):
         repo = SqlAlchemyCaseRepository(session)
         try:
             c = repo.get_case(case_id)
         except DomainError:
             raise HTTPException(status_code=404, detail={"code": "not_found"})
 
-        body = build_json_report(c)
+        rl = resolve_report_locale(locale, settings.report_locale)
+        body = build_json_report(c, locale=rl)
         rid = None
         if persist:
             row = repo.add_report(case_id, body, REPORT_SCHEMA_VERSION)
@@ -162,11 +182,31 @@ def get_router() -> APIRouter:
         """Send a full structured report JSON body to Gemini for Markdown narrative."""
         return _narrative_from_report_payload(body.report, body)
 
+    @r.post("/narratives/generate-from-report", response_model=NarrativeResponse)
+    def narratives_generate_from_report(
+        locale: str | None = Query(
+            None,
+            description="Markdown output language (`en`|`fa`); default `SN_REPORT_LOCALE`.",
+        ),
+        include_provider_raw: bool = Query(False),
+        extra_instructions: str | None = Query(None),
+        report: dict[str, Any] = Body(...),
+    ):
+        """Same narrative as POST /v1/narratives/generate, but the JSON body is only the report object (e.g. file from GET …/reports/latest). Use query string for options; avoids fragile PowerShell ConvertTo-Json wrapping."""
+        rl = resolve_report_locale(locale, settings.report_locale)
+        body = NarrativeRequest(
+            report=report,
+            locale=rl,
+            extra_instructions=extra_instructions,
+            include_provider_raw=include_provider_raw,
+        )
+        return _narrative_from_report_payload(report, body)
+
     @r.post("/cases/{case_id}/narratives/generate", response_model=NarrativeResponse)
     def case_narratives_generate(case_id: str, body: CaseNarrativeRequest, session: Session = Depends(db)):
         repo = SqlAlchemyCaseRepository(session)
         try:
-            repo.get_case(case_id)
+            c = repo.get_case(case_id)
         except DomainError:
             raise HTTPException(status_code=404, detail={"code": "not_found"})
 
@@ -176,11 +216,9 @@ def get_router() -> APIRouter:
             if lr is not None:
                 payload = lr.payload
             else:
-                c = repo.get_case(case_id)
-                payload = build_json_report(c)
+                payload = build_json_report(c, locale=body.locale)
         else:
-            c = repo.get_case(case_id)
-            payload = build_json_report(c)
+            payload = build_json_report(c, locale=body.locale)
 
         pseudo = NarrativeRequest(
             report=payload,

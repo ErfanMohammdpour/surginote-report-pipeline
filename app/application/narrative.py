@@ -28,10 +28,18 @@ Write the Markdown body in the language requested by the user message (e.g. Engl
 
 
 def build_user_message(*, report: dict, locale: str, extra_instructions: str | None) -> str:
-    loc = (locale or "en").strip()
-    prefix = (
-        f"Output locale tag: {loc}. Produce Markdown in English unless EXTRA_INSTRUCTIONS explicitly request another language.\n"
-    )
+    loc = str(locale or "en").strip().lower().split("-")[0]
+    if loc == "fa":
+        prefix = (
+            "locale=fa. خروجی را کاملاً به فارسی (متن مرور بالینی/آموزشی) بنویس؛ "
+            "زمان‌سنج‌ها و عبارات نمایش‌زمان را دقیقاً طبق ورودی حفظ کن. "
+            "داده بیرون از JSON جعل نکن.\n"
+        )
+    else:
+        prefix = (
+            f"Output locale tag: {loc}. Produce Markdown in clear English clinical debrief prose "
+            "unless EXTRA_INSTRUCTIONS explicitly request otherwise.\n"
+        )
     extra = ""
     if extra_instructions and extra_instructions.strip():
         extra = "\nEXTRA_INSTRUCTIONS_FROM_USER:\n" + extra_instructions.strip() + "\n"

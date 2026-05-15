@@ -51,14 +51,14 @@ Env: `SN_FLAG_POLICY` (default `phase_window_then_case_wide`), `SN_CONTRADICTION
 
 ## 5. Report JSON schema (high level)
 
-- `meta`: `schema_version`, `export_version`, `video_*`, `generated_at`, `sources`, thresholds.
+- `meta`: `schema_version`, **`report_locale`** (`en`|`fa`), `export_version`, `video_*`, `generated_at`, `sources`, thresholds.
 - `sections.phase_summary.items`
-- `sections.score_analysis`: `overall`, `per_skill_means`, **`score_narrative`** (English template lines)
+- `sections.score_analysis`: `overall`, `per_skill_means`, **`score_narrative`** (template prose; language follows `meta.report_locale`)
 - `sections.comments_timeline`
 - `sections.contradictions.flags`
 - `quality.limitations`
 
-**Schema version** is bumped when payload shape changes (currently `1.2.0`: `score_narrative` replaces legacy `narrative_fa`).
+**Schema version** `1.3.0`: adds `meta.report_locale`; template strings (`score_narrative`, limitations, case-wide flag `marker.notes`) localize when `locale=fa`.
 
 ---
 
@@ -66,11 +66,12 @@ Env: `SN_FLAG_POLICY` (default `phase_window_then_case_wide`), `SN_CONTRADICTION
 
 | Method | Path | Notes |
 |--------|------|--------|
-| `POST` | `/v1/imports` | multipart `upload` file `.xlsx` / `.xlsm` |
+| `POST` | `/v1/imports` | multipart `upload` file `.xlsx` / `.xlsm`; optional query `locale` (`en`|`fa`) sets `default_report_locale` echo (planning hint; not stored on case row) |
 | `GET` | `/v1/cases/{case_id}` | normalized case + relations |
-| `POST` | `/v1/cases/{case_id}/reports/generate` | `persist` query (default `true`) |
+| `POST` | `/v1/cases/{case_id}/reports/generate` | query: `locale` (`en`|`fa`, default `SN_REPORT_LOCALE`), `persist` (default `true`) |
 | `GET` | `/v1/cases/{case_id}/reports/latest` | last persisted report |
-| `POST` | `/v1/narratives/generate` | body: `{ "report": {...}, "locale": "en", ... }` + `GEMINI_API_KEY` |
+| `POST` | `/v1/narratives/generate` | body: `{ "report": {...}, "locale": "en"|"fa", ... }` + `GEMINI_API_KEY` |
+| `POST` | `/v1/narratives/generate-from-report` | body: **report JSON only** (same shape as `report` in `/reports/latest`); query `locale` (`en`|`fa`, default `SN_REPORT_LOCALE`), `include_provider_raw`, `extra_instructions`. Prefer **`curl`** from PowerShell (`ConvertTo-Json` brittle). |
 | `POST` | `/v1/cases/{case_id}/narratives/generate` | same, pulls report from DB |
 | `GET` | `/healthz` | liveness |
 
@@ -85,7 +86,7 @@ app/
   domain/
   application/ingest.py, analytics.py, report_pipeline.py, narrative.py
   infrastructure/excel/parser.py, database/*, llm/gemini_rest.py
-  api/router.py, schemas.py
+  api/router.py, schemas.py, locale_util.py
 tests/
 scripts/smoke_test.ps1
 CHECKLIST.md
@@ -106,6 +107,7 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ### Environment (`.env` from `.env.example`)
 
 - `SN_DATABASE_URL` — default `sqlite:///./data/surginote.db` (anchored under project root)
+- `SN_REPORT_LOCALE` — `en`|`fa`; default structured-report + narrative `locale` when request omits it
 - `SN_CONTRADICTION_SCORE_RATIO_THRESHOLD` — default `0.8`
 - `SN_FLAG_POLICY` — default `phase_window_then_case_wide`
 - `GEMINI_API_KEY` / `GEMINI_MODEL` — for narrative endpoints
@@ -116,6 +118,18 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 pytest tests -q
 ```
 
+### Narrative from a saved report (`report_last.json`)
+
+Use **`curl.exe`** with **`--data-binary @file`** so the server receives valid JSON. Example (after `smoke_test.ps1` or any flow that wrote `report_last.json`):
+
+```powershell
+curl.exe -sS -X POST "http://127.0.0.1:8000/v1/narratives/generate-from-report?locale=en" `
+  -H "Content-Type: application/json" `
+  --data-binary "@.\report_last.json"
+```
+
+The older **`POST /v1/narratives/generate`** wrapper shape still works from clients that produce strict JSON (e.g. Python `httpx`, `curl` with a hand-built file).
+
 ---
 
 ## 8. Acceptance checklist
@@ -124,4 +138,4 @@ See **`CHECKLIST.md`** for the detailed tick list.
 
 ---
 
-*README version `2.0` — English-only project docs.*
+*README version `2.1` — spec prose in English; report JSON localized via `report_locale`.*
