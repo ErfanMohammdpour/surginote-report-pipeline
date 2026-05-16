@@ -67,11 +67,6 @@ app/
   api/router.py, schemas.py, locale_util.py
 tests/
 scripts/smoke_test.ps1
-scripts/compile_delivery_report.ps1
-Template/main.tex
-Template/Settings.tex
-Template/titlepage.tex
-Template/surginote_body.tex
 CHECKLIST.md
 docs/prompts/narrative_from_report_json.example.md
 .env.example
@@ -119,14 +114,6 @@ The older **`POST /v1/narratives/generate`** wrapper shape still works from clie
 
 See **`CHECKLIST.md`** for the detailed tick list.
 
-**Delivery PDF (Persian):** uses the **standard ARAS-style** `Template/` layout: `main.tex` + `Settings.tex` + `titlepage.tex` + `surginote_body.tex`. From repo root:
-
-```powershell
-.\scripts\compile_delivery_report.ps1
-```
-
-Or manually (`cd Template`; run `xelatex` **twice** on `main.tex`). Output: **`Template/main.pdf`**. Requires fonts under `Template/font/` (IRLotus, IranNastaliq as in the university template).
-
 ---
 
-*README version `2.1` — spec prose in English; report JSON localized via `report_locale`.*
+*README version `2.2` — spec prose in English; report JSON localized via `report_locale`.*
