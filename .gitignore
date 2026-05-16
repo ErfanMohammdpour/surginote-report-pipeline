@@ -7,10 +7,11 @@ __pycache__/
 data/*.db
 data/*.sqlite3
 tests/_pytest.sqlite
+tests/_pytest.sqlite_tex
 tests/_minimal_export.xlsx
 report_last.json
 
 .env
 .idea/
 .vscode/
-Template/   
+Template/
