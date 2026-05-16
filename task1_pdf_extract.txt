@@ -1,2 +1,0 @@
-# Legacy reference extract (original PDFs live outside this repo).
-# Task1 / Task2 / ARAS technical PDFs: use README.md for the English implementation spec.
