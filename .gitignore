@@ -1,17 +1,63 @@
+# Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Test & cache
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.coverage
 
-data/*.db
-data/*.sqlite3
+# Local delivery / scratch (not for repo)
+CHECKLIST.md
+report_last.json
+*.log
+*.aux
+*.toc
+*.out
+
+# Secrets — never commit these
+.env
+*.pem
+*.key
+*.p12
+*.pfx
+*_secret*
+/secrets/
+
+# Local test artifacts
 tests/_pytest.sqlite
-tests/_pytest.sqlite_tex
+tests/_pytest.sqlite*
 tests/_minimal_export.xlsx
 report_last.json
 
-.env
+# Data
+data/*.db
+data/*.sqlite3
+
+# IDE
 .idea/
 .vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# LaTeX delivery template
 Template/
+
+# Virtual env
+.venv/
+venv/
+env/

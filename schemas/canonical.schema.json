@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aras.local/surginote/canonical/1.0",
+  "title": "SurgiNoteCanonicalExport",
+  "type": "object",
+  "required": ["video_info", "phases", "skills", "comments"],
+  "additionalProperties": false,
+  "properties": {
+    "video_info": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "video_id": { "type": ["integer", "null"] },
+        "duration_seconds": { "type": ["number", "null"], "minimum": 0 },
+        "export_version": { "type": ["string", "null"] }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "start_time", "end_time"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "start_time": { "type": "number", "minimum": 0 },
+          "end_time": { "type": "number", "minimum": 0 },
+          "description": { "type": ["string", "null"] },
+          "phaco_method": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "phase_name", "score", "max_score"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "phase_name": { "type": "string", "minLength": 1 },
+          "score": { "type": "number", "minimum": 0 },
+          "max_score": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "comments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["timestamp", "text", "sentiment"],
+        "properties": {
+          "timestamp": { "type": ["number", "null"], "minimum": 0 },
+          "text": { "type": "string" },
+          "sentiment": { "type": "string", "enum": ["positive", "negative", "neutral", "unknown"] },
+          "title": { "type": ["string", "null"] },
+          "type": { "type": ["string", "null"] },
+          "video_time_display": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "raw_payload": { "type": ["object", "null"] }
+  }
+}

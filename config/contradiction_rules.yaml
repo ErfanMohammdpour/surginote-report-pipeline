@@ -1,0 +1,36 @@
+# Configurable contradiction / QA rules (Task 3 rule engine)
+version: "1.0"
+rules:
+  - id: high_score_negative_comment
+    enabled: true
+    severity: warning
+    message_template: "Skill '{skill_name}' in phase '{phase_name}' scored {score}/{max_score} but negative feedback at {video_time_display}: {comment_text}"
+    condition:
+      score_ratio: { gte: 0.8 }
+      comment_sentiment: negative
+      linkage_preference: phase_window_then_case_wide
+
+  - id: low_score_no_comment
+    enabled: true
+    severity: info
+    message_template: "Skill '{skill_name}' in phase '{phase_name}' has low score {score}/{max_score} with no comments in phase window"
+    condition:
+      score_ratio: { lt: 0.5 }
+      comment_count_in_phase: 0
+
+  - id: phase_duration_mismatch
+    enabled: true
+    severity: warning
+    message_template: "Phase '{phase_name}' is short ({duration_seconds}s) but has {comment_count} comments"
+    condition:
+      phase_duration_seconds: { lt: 60 }
+      comment_count_in_phase: { gte: 5 }
+
+  - id: comment_cluster_burst
+    enabled: true
+    severity: info
+    message_template: "Burst of {comment_count} comments within {window_seconds}s starting at {cluster_start_display}"
+    condition:
+      comment_cluster:
+        window_seconds: 30
+        min_count: 4

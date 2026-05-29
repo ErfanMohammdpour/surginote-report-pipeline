@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: surginote
+      POSTGRES_PASSWORD: surginote
+      POSTGRES_DB: surginote
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U surginote"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      SN_DATABASE_URL: postgresql+psycopg://surginote:surginote@postgres:5432/surginote
+      SN_REDIS_URL: redis://redis:6379/0
+      SN_S3_ENDPOINT_URL: http://minio:9000
+      SN_S3_ACCESS_KEY: minioadmin
+      SN_S3_SECRET_KEY: minioadmin
+      SN_S3_BUCKET: surginote-uploads
+      SN_SECRET_PROVIDER: env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      SN_DATABASE_URL: postgresql+psycopg://surginote:surginote@postgres:5432/surginote
+      SN_REDIS_URL: redis://redis:6379/0
+      SN_S3_ENDPOINT_URL: http://minio:9000
+      SN_S3_ACCESS_KEY: minioadmin
+      SN_S3_SECRET_KEY: minioadmin
+      SN_S3_BUCKET: surginote-uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: arq app.infrastructure.queue.worker.WorkerSettings
+
+volumes:
+  pgdata:
+  miniodata:

@@ -3,10 +3,14 @@ from __future__ import annotations
 import io
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Header, HTTPException, Query, Response, UploadFile
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_db
 from app.api.locale_util import resolve_report_locale
+from app.api.upload_util import read_upload_bounded
+from app.domain.security import sanitize_filename
 from app.api.schemas import (
     CaseDetailResponse,
     CaseNarrativeRequest,
@@ -18,22 +22,21 @@ from app.api.schemas import (
     ReportEnvelope,
     SkillDTO,
 )
-from app.application.ingest import ingest_excel_upload
+from app.application.import_pipeline import process_import
 from app.application.narrative import synthesize_markdown_report
 from app.application.report_pipeline import REPORT_SCHEMA_VERSION, build_json_report
 from app.config import settings
-from app.domain.errors import DomainError, ParseError
+from app.domain.errors import DomainError, ParseError, UploadError, ValidationError
 from app.infrastructure.database.models import CaseORM
 from app.infrastructure.llm.gemini_rest import GeminiError
 from app.infrastructure.database.repository import SqlAlchemyCaseRepository
-from app.infrastructure.database.session import get_session
 
 
 def get_router() -> APIRouter:
     r = APIRouter(prefix="/v1")
 
     def db():
-        yield from get_session()
+        yield from get_db()
 
     def case_to_detail(c: CaseORM) -> CaseDetailResponse:
         return CaseDetailResponse(
@@ -81,23 +84,63 @@ def get_router() -> APIRouter:
 
     @r.post("/imports", response_model=ImportResponse)
     async def imports_post(
+        response: Response,
         upload: UploadFile = File(...),
         locale: str | None = Query(
             None,
             description="Preferred report locale (`en`|`fa`) for follow-up calls; not stored on the case.",
         ),
+        x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
         session: Session = Depends(db),
     ):
-        if not upload.filename or not upload.filename.lower().endswith((".xlsx", ".xlsm")):
-            raise HTTPException(status_code=400, detail={"code": "invalid_extension", "message": "only xlsx/xlsm"})
-        try:
-            content = await upload.read()
-            case_id, parsed = ingest_excel_upload(session, io.BytesIO(content))
-        except ParseError as e:
-            raise HTTPException(status_code=422, detail={"code": "parse_error", "message": str(e)}) from e
+        allowed = (".xlsx", ".xlsm", ".json", ".csv")
+        if not upload.filename or not upload.filename.lower().endswith(allowed):
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "invalid_extension", "message": "Supported: xlsx, xlsm, json, csv"},
+            )
+        safe_filename = sanitize_filename(upload.filename or "upload")
+        content = await read_upload_bounded(upload, max_bytes=settings.max_upload_bytes)
+        body, hdrs, _replay = process_import(
+            session,
+            filename=safe_filename,
+            file_like=io.BytesIO(content),
+            content_type=upload.content_type,
+            idempotency_key=x_idempotency_key,
+        )
+
+        for k, v in hdrs.items():
+            response.headers[k] = v
+
+        if body.get("status") == "failed":
+            stage = body.get("stage", "unknown")
+            if stage == "validation":
+                return JSONResponse(
+                    status_code=422,
+                    content={"code": "validation_error", "valid": False, "errors": body.get("errors") or []},
+                    headers=hdrs,
+                )
+            if stage == "parse":
+                return JSONResponse(
+                    status_code=422,
+                    content={"code": "parse_error", "message": body.get("message", "parse failed")},
+                    headers=hdrs,
+                )
+            return JSONResponse(
+                status_code=400,
+                content={"code": body.get("code", "import_failed"), "message": body.get("message", "import failed")},
+                headers=hdrs,
+            )
 
         rl = resolve_report_locale(locale, settings.report_locale)
-        return ImportResponse(case_id=case_id, warnings=parsed.warnings, default_report_locale=rl)
+        return ImportResponse(
+            case_id=body["case_id"],
+            import_id=body.get("import_id"),
+            warnings=body.get("warnings") or [],
+            default_report_locale=rl,
+            file_hash_sha256=body.get("file_hash_sha256"),
+            format=body.get("format"),
+        )
 
     @r.get("/cases/{case_id}", response_model=CaseDetailResponse)
     def cases_get(case_id: str, session: Session = Depends(db)):

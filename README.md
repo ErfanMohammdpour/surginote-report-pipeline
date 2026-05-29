@@ -1,10 +1,10 @@
-# SurgiNote Report Module — Data Ingestion & Structured Report (FastAPI)
+# SurgiNote Report Service
 
-This document describes the **implementation contract** for the operational task: **ingest SurgiNote Excel export → persist → multi-stage structured report as JSON**, aligned with prior task materials (Task1 PDF, ARAS technical PDF, Task2 PDF) and the real `case_4693` workbook shape.
+**Production-ready** FastAPI service for surgical video annotation ingestion, analysis, and structured report generation. Designed for clinical and enterprise deployment.
 
 ---
 
-## 1. Workbook contract (`xlsx`)
+## Workbook contract (`xlsx`)
 
 1. **Video Info** — `Property | Value` rows (`Video ID`, `Video Name`, `Duration`, `Export Version`, …).
 2. **Phases** — `Phase Name`, times, frames, `Description`, `Phaco Method`, …
@@ -14,106 +14,181 @@ This document describes the **implementation contract** for the operational task
 
 ---
 
-## 2. Internal persistence
+## Internal persistence
 
 - `cases` + `raw_payload` JSON.
 - `case_phases`, `case_skills`, `case_comments`, `case_reports`.
+- `imports`, `import_events`, `idempotency_keys` — event store + audit trail.
+- `reports`, `report_sections` — async pipeline reports (schema 2.0).
 
 ---
 
-## 3. Flags policy
+## Flags policy
 
 Env: `SN_FLAG_POLICY` (default `phase_window_then_case_wide`), `SN_CONTRADICTION_SCORE_RATIO_THRESHOLD` (default `0.8`).
 
 ---
 
-## 4. Report JSON schema (high level)
+## Report JSON schema (high level)
 
 - `meta`: `schema_version`, **`report_locale`** (`en`|`fa`), `export_version`, `video_*`, `generated_at`, `sources`, thresholds.
 - `sections.phase_summary.items`
-- `sections.score_analysis`: `overall`, `per_skill_means`, **`score_narrative`** (template prose; language follows `meta.report_locale`)
+- `sections.score_analysis`: `overall`, `per_skill_means`, **`score_narrative`**
 - `sections.comments_timeline`
 - `sections.contradictions.flags`
 - `quality.limitations`
 
-**Schema version** `1.3.0`: adds `meta.report_locale`. The `locale` parameter (`en` or `fa`) controls the language of template strings (`score_narrative`, limitations, case-wide flag `marker.notes`) in the generated report JSON. It also sets the default language for the Gemini narrative if no locale is explicitly provided to the narrative endpoint.
-
 ---
 
-## 5. HTTP API (implemented)
+## HTTP API
+
+### Core import & case management
 
 | Method | Path | Notes |
 |--------|------|--------|
-| `POST` | `/v1/imports` | multipart `upload` file `.xlsx` / `.xlsm`; optional query `locale` (`en`|`fa`) sets `default_report_locale` echo (planning hint; not stored on case row). |
+| `POST` | `/v1/imports` | multipart `upload` — `.xlsx`/`.xlsm`/`.json`/`.csv`; `X-Idempotency-Key`; SHA-256; audit events |
 | `GET` | `/v1/cases/{case_id}` | normalized case + relations |
-| `POST` | `/v1/cases/{case_id}/reports/generate` | query: `locale` (`en`|`fa`, default `SN_REPORT_LOCALE`), `persist` (default `true`). Generates JSON report with localized strings if `fa`. |
+| `POST` | `/v1/cases/{case_id}/reports/generate` | query: `locale` (`en`|`fa`), `persist` (default `true`) |
 | `GET` | `/v1/cases/{case_id}/reports/latest` | last persisted report |
-| `POST` | `/v1/narratives/generate` | body: `{ "report": {...}, "locale": "en"|"fa", ... }` + `GEMINI_API_KEY`. `locale` dictates Gemini output language. |
-| `POST` | `/v1/narratives/generate-from-report` | body: **report JSON only** (same shape as `report` in `/reports/latest`); query `locale` (`en`|`fa`, default `SN_REPORT_LOCALE`), `include_provider_raw`, `extra_instructions`. Prefer **`curl`** from PowerShell (`ConvertTo-Json` brittle). |
-| `POST` | `/v1/cases/{case_id}/narratives/generate` | same, pulls report from DB. Query `locale` (`en`|`fa`) overrides default. |
+| `POST` | `/v1/narratives/generate` | body: `{ "report": {...}, "locale": "en"|"fa" }` + `GEMINI_API_KEY` |
+| `POST` | `/v1/narratives/generate-from-report` | body: report JSON; query: `locale`, `extra_instructions` |
+| `POST` | `/v1/cases/{case_id}/narratives/generate` | pulls report from DB |
 | `GET` | `/healthz` | liveness |
+| `GET` | `/readyz` | DB readiness |
+
+### Event pipeline & async reports
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `GET` | `/v1/imports/{id}/audit-trail` | append-only event log; `?format=csv` for CSV export |
+| `POST` | `/v1/imports/{id}/reports/async` | 4-stage pipeline (ARQ or `SN_SYNC_JOBS=true`) |
+| `GET` | `/v1/reports/{id}/status` | stage progress + `duration_ms` + `estimated_completion` |
+| `GET` | `/v1/reports/{id}` | schema **2.0** final report |
+| `GET` | `/v1/reports/{a}/diff/{b}` | deep diff across all sections |
+| `POST` | `/v1/reports/{id}/regenerate` | rule/threshold override |
+| `POST` | `/v1/webhooks` | register `report.completed` / `report.failed` / `import.completed` |
+
+See **`docs/ARCHITECTURE.md`** and **`docker-compose.yml`** for service topology.
 
 ---
 
-## 6. Project layout (this repo)
+## Architecture diagram
+
+```mermaid
+flowchart TD
+    Client([HTTP Client])
+    API["FastAPI\n(app/main.py)"]
+    Router1["Core Router\n/v1/imports POST\n/v1/cases"]
+    Router2["Pipeline Router\n/v1/imports/{id}/reports/async\n/v1/reports/{id}\n/v1/webhooks\n/v1/…/audit-trail"]
+    Pipeline["import_pipeline.py\n(idempotency + sha256\n+ event sourcing)"]
+    Parsers["multi.py\n(xlsx / json / csv)"]
+    Validator["validation.py\n(JSON Schema 2020-12\n+ business rules)"]
+    EventStore[("PostgreSQL\nimports, import_events\nidempotency_keys")]
+    MinIO[("MinIO / S3\nraw files")]
+    Redis[("Redis\nARQ queue")]
+    Worker["ARQ Worker\n(report_pipeline)\nexp-backoff · independent stages"]
+    Stage1["phase_summary"]
+    Stage2["score_analysis"]
+    Stage3["comment_timeline"]
+    Stage4["contradictions\n(YAML rule engine)"]
+    ReportDB[("PostgreSQL\nreports, report_sections")]
+    Webhooks["webhooks.py\n(HMAC-SHA256 signing)"]
+    Diff["report_diff.py\n(all-section deep diff)"]
+
+    Client -->|multipart upload| API
+    API --> Router1 & Router2
+    Router1 --> Pipeline
+    Pipeline --> Parsers & Validator & EventStore & MinIO
+    Router2 -->|enqueue| Redis
+    Redis --> Worker
+    Worker --> Stage1 & Stage2 & Stage3 & Stage4
+    Stage1 & Stage2 & Stage3 & Stage4 --> ReportDB
+    ReportDB -->|final payload| Router2
+    Router2 --> Diff
+    ReportDB --> Webhooks
+    Webhooks -->|POST + X-Signature-256| Client
+```
+
+---
+
+## Project layout
 
 ```
 app/
-  main.py
-  config.py
-  domain/
-  application/ingest.py, analytics.py, report_pipeline.py, narrative.py
-  infrastructure/excel/parser.py, database/*, llm/gemini_rest.py
-  api/router.py, schemas.py, locale_util.py
+  main.py                  # ASGI app + middleware + lifespan
+  config.py                # Pydantic settings (SN_* env vars)
+  domain/                  # canonical, errors, events, hashing, security, validation
+  application/             # import_pipeline, report_jobs, report_diff, rules/, analyzers/
+  infrastructure/          # database/, excel/, llm/, parsers/, queue/, secrets/, storage/
+  api/                     # router.py (core), pipeline_router.py, errors.py, schemas.py
+config/
+  contradiction_rules.yaml
+schemas/
+  canonical.schema.json
 tests/
-scripts/smoke_test.ps1
-CHECKLIST.md
-docs/prompts/narrative_from_report_json.example.md
+  unit/                    # test_analyzers, test_rule_engine, test_security, test_validation
+  integration/             # test_import_pipeline, test_edge_cases, test_security_features
+scripts/
+  smoke_test.sh
+alembic/
+  versions/001_initial_schema.py
+docs/
+  ARCHITECTURE.md
+docker-compose.yml
+Dockerfile
 .env.example
 ```
 
-### Run locally
+---
 
-```powershell
-cd pre-task/2
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+## Quick start (local)
+
+```bash
+docker compose up -d postgres redis minio
+cp .env.example .env
 pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# async worker (skip with SN_SYNC_JOBS=true)
+arq app.infrastructure.queue.worker.WorkerSettings
 ```
 
 ### Environment (`.env` from `.env.example`)
 
-- `SN_DATABASE_URL` — default `sqlite:///./data/surginote.db` (anchored under project root)
-- `SN_REPORT_LOCALE` — `en`|`fa`; default structured-report + narrative `locale` when request omits it. Controls language of JSON template strings and Gemini output.
-- `SN_CONTRADICTION_SCORE_RATIO_THRESHOLD` — default `0.8`
-- `SN_FLAG_POLICY` — default `phase_window_then_case_wide`
-- `GEMINI_API_KEY` / `GEMINI_MODEL` — for narrative endpoints
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `SN_DATABASE_URL` | PostgreSQL URL | Primary database |
+| `SN_REDIS_URL` | `redis://localhost:6379/0` | ARQ queue |
+| `SN_S3_ENDPOINT_URL` | `http://localhost:9000` | Object storage |
+| `SN_REPORT_LOCALE` | `en` | `en`\|`fa` default report language |
+| `SN_CONTRADICTION_SCORE_RATIO_THRESHOLD` | `0.8` | Flag threshold |
+| `SN_FLAG_POLICY` | `phase_window_then_case_wide` | Detection scope |
+| `GEMINI_API_KEY` | — | Narrative generation |
+| `SN_SYNC_JOBS` | `false` | Inline stages (dev/test) |
+| `SN_SKIP_OBJECT_STORAGE` | `false` | Bypass MinIO (dev/test) |
+| `SN_RATE_LIMIT` | `60/minute` | Per-IP rate limit |
 
 ### Tests
 
-```powershell
-pytest tests -q
+```bash
+pytest tests -q                           # all tests
+pytest tests/unit -q                      # unit: rules, analyzers, validation, security
+pytest tests/integration -q              # integration: pipeline, edge-cases, security
+pytest tests --cov=app --cov-report=html  # coverage report
 ```
-
-### Narrative from a saved report (`report_last.json`)
-
-Use **`curl.exe`** with **`--data-binary @file`** so the server receives valid JSON. Example (after `smoke_test.ps1` or any flow that wrote `report_last.json`):
-
-```powershell
-curl.exe -sS -X POST "http://127.0.0.1:8000/v1/narratives/generate-from-report?locale=fa" `
-  -H "Content-Type: application/json" `
-  --data-binary "@.\report_last.json"
-```
-
-The older **`POST /v1/narratives/generate`** wrapper shape still works from clients that produce strict JSON (e.g. Python `httpx`, `curl` with a hand-built file).
 
 ---
 
-## 7. Acceptance checklist
+## Security
 
-See **`CHECKLIST.md`** for the detailed tick list.
+- Security headers on every response (`nosniff`, `X-Frame-Options: DENY`, XSS, Referrer-Policy)
+- `X-Request-ID` tracing on every request
+- Rate limiting per IP (`slowapi`)
+- CORS configurable via `SN_CORS_ORIGINS`
+- Filename sanitization: path traversal stripped, null bytes removed, 255-char cap
+- Webhook secret: min 16 chars, HMAC-SHA256 signed outbound calls
+- Secrets via `SN_SECRET_PROVIDER=env|mapped` (extend for Vault/AWS Secrets Manager)
+- No internal details in 500 responses
 
 ---
 
-*README version `2.2` — spec prose in English; report JSON localized via `report_locale`.*
+*README v3.0 — report JSON localized via `report_locale`.*

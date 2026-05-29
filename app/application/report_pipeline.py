@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from app.application.analytics import FlagRecord, compute_flags_for_case
+from app.application.analytics import FlagRecord
+from app.application.rules.engine import evaluate_rules, hits_to_legacy_flags, load_rules_config
+from app.domain.canonical import parsed_export_to_canonical
 from app.config import settings
 from app.infrastructure.database import models
 
@@ -133,8 +135,23 @@ def build_json_report(case: models.CaseORM, locale: str = "en") -> dict:
         for p in case.phases
     ]
 
-    flags = compute_flags_for_case(
-        phases=phases_plain,
+    canonical = parsed_export_to_canonical(
+        video_info={
+            "Video Name": case.video_name,
+            "Video ID": case.video_id,
+            "Duration (seconds)": case.duration_seconds,
+            "Export Version": case.export_version,
+        },
+        phases=[
+            {
+                "phase_name": p.phase_name,
+                "start_seconds": p.start_seconds,
+                "end_seconds": p.end_seconds,
+                "description": p.description,
+                "phaco_method": p.phaco_method,
+            }
+            for p in case.phases
+        ],
         skills=[
             {"phase_name": s.phase_name, "skill_name": s.skill_name, "score": s.score, "max_score": s.max_score}
             for s in case.skills
@@ -149,10 +166,11 @@ def build_json_report(case: models.CaseORM, locale: str = "en") -> dict:
             }
             for c in case.comments
         ],
-        score_ratio_threshold=settings.contradiction_score_ratio_threshold,
-        policy=settings.flag_policy,
-        report_locale=locale,
+        raw_payload=case.raw_payload if isinstance(case.raw_payload, dict) else None,
     )
+    cfg = load_rules_config()
+    rule_hits = evaluate_rules(canonical, config=cfg, locale=locale)
+    flags_payload = hits_to_legacy_flags(rule_hits, locale=locale)
 
     if locale == "fa":
         limits = [
@@ -189,7 +207,7 @@ def build_json_report(case: models.CaseORM, locale: str = "en") -> dict:
                 "score_narrative": "\n".join(_phase_performance_lines(case, skills_mean, locale)),
             },
             "comments_timeline": _comment_items(case),
-            "contradictions": {"flags": flags_to_payload(flags)},
+            "contradictions": {"flags": flags_payload},
         },
         "quality": {"limitations": limits},
     }

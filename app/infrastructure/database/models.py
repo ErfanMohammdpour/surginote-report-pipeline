@@ -103,3 +103,92 @@ class ReportORM(Base):
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     case: Mapped[CaseORM] = relationship(back_populates="reports")
+
+
+class ImportORM(Base):
+    __tablename__ = "imports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: f"imp_{uuid.uuid4().hex[:12]}")
+    case_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("cases.id", ondelete="SET NULL"), index=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    file_hash_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    storage_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    format: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="completed")
+    canonical_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    events: Mapped[list[ImportEventORM]] = relationship(back_populates="import_row", cascade="all, delete-orphan")
+    async_reports: Mapped[list[AsyncReportORM]] = relationship(back_populates="import_row", cascade="all, delete-orphan")
+
+
+class ImportEventORM(Base):
+    __tablename__ = "import_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    import_id: Mapped[str] = mapped_column(String(36), ForeignKey("imports.id", ondelete="CASCADE"), index=True)
+    event_type: Mapped[str] = mapped_column(String(64), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    import_row: Mapped[ImportORM] = relationship(back_populates="events")
+
+
+class IdempotencyORM(Base):
+    __tablename__ = "idempotency_keys"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    response_body: Mapped[dict] = mapped_column(JSON)
+    response_headers: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class AsyncReportORM(Base):
+    __tablename__ = "reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: f"rpt_{uuid.uuid4().hex[:12]}")
+    import_id: Mapped[str] = mapped_column(String(36), ForeignKey("imports.id", ondelete="CASCADE"), index=True)
+    case_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("cases.id", ondelete="SET NULL"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="processing")
+    progress_percent: Mapped[int] = mapped_column(Integer, default=0)
+    schema_version: Mapped[str] = mapped_column(String(16), default="2.0")
+    locale: Mapped[str] = mapped_column(String(8), default="en")
+    final_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    config_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    import_row: Mapped[ImportORM] = relationship(back_populates="async_reports")
+    sections: Mapped[list[ReportSectionORM]] = relationship(back_populates="report", cascade="all, delete-orphan")
+
+
+class ReportSectionORM(Base):
+    __tablename__ = "report_sections"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    report_id: Mapped[str] = mapped_column(String(36), ForeignKey("reports.id", ondelete="CASCADE"), index=True)
+    section_name: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    report: Mapped[AsyncReportORM] = relationship(back_populates="sections")
+
+
+class WebhookORM(Base):
+    __tablename__ = "webhooks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    url: Mapped[str] = mapped_column(String(2048))
+    events: Mapped[list[str]] = mapped_column(JSON, default=list)
+    secret: Mapped[str] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

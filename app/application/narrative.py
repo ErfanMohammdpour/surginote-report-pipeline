@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from app.config import settings
+from app.config import resolve_gemini_api_key, settings
 from app.infrastructure.llm.gemini_rest import generate_content
 
 
@@ -58,7 +58,7 @@ def synthesize_markdown_report(
     timeout_seconds: float | None = None,
 ) -> dict:
     """Call Gemini and return markdown + diagnostics."""
-    key = api_key or settings.gemini_api_key
+    key = api_key or resolve_gemini_api_key()
     if not key or not key.strip():
         raise ValueError("gemini_api_key_missing")
 

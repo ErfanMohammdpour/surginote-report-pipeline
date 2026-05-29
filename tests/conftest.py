@@ -15,6 +15,8 @@ def pytest_configure(config):
     db_path.parent.mkdir(parents=True, exist_ok=True)
     db_path.unlink(missing_ok=True)
     os.environ["SN_DATABASE_URL"] = "sqlite:///./tests/_pytest.sqlite"
+    os.environ["SN_SKIP_OBJECT_STORAGE"] = "true"
+    os.environ["SN_SYNC_JOBS"] = "true"
     # Build engine after env is set, then create tables (TestClient alone may not run lifespan).
     from app.infrastructure.database.session import create_all
 

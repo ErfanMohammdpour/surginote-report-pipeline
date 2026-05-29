@@ -8,11 +8,14 @@ from pydantic import BaseModel, Field
 
 class ImportResponse(BaseModel):
     case_id: str = Field(description="Stable case id for follow-up API calls")
+    import_id: str | None = Field(default=None, description="Import pipeline identifier")
     warnings: list[str] = Field(default_factory=list)
     default_report_locale: Literal["en", "fa"] = Field(
         default="en",
         description="Resolved locale for this response (query `locale` or server `SN_REPORT_LOCALE`); use on POST …/reports/generate.",
     )
+    file_hash_sha256: str | None = None
+    format: str | None = None
 
 
 class PhaseDTO(BaseModel):
