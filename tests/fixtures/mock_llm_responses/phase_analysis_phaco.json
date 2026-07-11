@@ -1,0 +1,9 @@
+{
+  "phase_id": "phase_phaco",
+  "clinical_narrative": "Phacoemulsification showed effective chamber stability with brief handpiece chatter that recovered well.",
+  "strengths": ["Chamber stability", "Instrument handling"],
+  "weaknesses": ["Energy efficiency during chatter event"],
+  "recommendations": ["Practice foot-pedal modulation during dense nuclear segments."],
+  "key_insights": ["Warning marker aligned with transient technique issue."],
+  "confidence_score": 0.88
+}

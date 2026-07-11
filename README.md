@@ -53,6 +53,7 @@ Env: `SN_FLAG_POLICY` (default `phase_window_then_case_wide`), `SN_CONTRADICTION
 | `POST` | `/v1/narratives/generate` | body: `{ "report": {...}, "locale": "en"|"fa" }` + `GEMINI_API_KEY` |
 | `POST` | `/v1/narratives/generate-from-report` | body: report JSON; query: `locale`, `extra_instructions` |
 | `POST` | `/v1/cases/{case_id}/narratives/generate` | pulls report from DB |
+| `POST` | `/v1/reports/generate-ai` | **Task 5** — multi-agent AI clinical Markdown from `annotation_data` |
 | `GET` | `/healthz` | liveness |
 | `GET` | `/readyz` | DB readiness |
 
@@ -68,7 +69,56 @@ Env: `SN_FLAG_POLICY` (default `phase_window_then_case_wide`), `SN_CONTRADICTION
 | `POST` | `/v1/reports/{id}/regenerate` | rule/threshold override |
 | `POST` | `/v1/webhooks` | register `report.completed` / `report.failed` / `import.completed` |
 
-See **`docs/ARCHITECTURE.md`** and **`docker-compose.yml`** for service topology.
+See **`docs/ARCHITECTURE.md`**, **`docs/AGENT_PIPELINE.md`**, and **`docker-compose.yml`** for service topology.
+
+---
+
+## AI clinical report pipeline (Task 5)
+
+Generates a **supervisor-style Markdown evaluation** directly from platform `annotation_data` (phases, metrics, scores, markers) using a **5-agent LLM pipeline** with mandatory rule-based fallback.
+
+### Endpoint
+
+```http
+POST /v1/reports/generate-ai
+Content-Type: application/json
+```
+
+**Request body:** `phases`, `metrics`, `scores`, `markers`, optional `settings` (`tone` 0–4, `emphasis`, `locale`, `ai_config`).
+
+**Response:** `{ "content": "<markdown>", "generatedAt": "<ISO8601>", "metadata": { ... } }`
+
+See **`sample_report_ai.md`** for a full S1 example and metadata field reference.  
+Technical delivery report: **`TASK5_REPORT.md`**.
+
+### Quick curl (minimal fixture)
+
+```bash
+python3 - <<'PY'
+import json, urllib.request
+from pathlib import Path
+body = json.loads(Path("tests/fixtures/annotation_data_minimal.json").read_text())
+body["settings"] = {"tone": 2, "ai_config": {"enable_review": false}}
+req = urllib.request.Request(
+    "http://127.0.0.1:8000/v1/reports/generate-ai",
+    data=json.dumps(body).encode(),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+print(json.load(urllib.request.urlopen(req))["metadata"])
+PY
+```
+
+Without a live LLM key the orchestrator falls back to rule-based Markdown (`metadata.fallback_used=true`) — still HTTP 200.
+
+### AI pipeline tests
+
+```bash
+pytest tests/unit/test_ai_pipeline/ --noconftest -q
+pytest tests/integration/test_generate_ai_report.py -q
+pytest tests/unit/test_ai_pipeline/ --noconftest \
+  --cov=app/application/ai_pipeline --cov-fail-under=90
+```
 
 ---
 
@@ -118,7 +168,7 @@ app/
   main.py                  # ASGI app + middleware + lifespan
   config.py                # Pydantic settings (SN_* env vars)
   domain/                  # canonical, errors, events, hashing, security, validation
-  application/             # import_pipeline, report_jobs, report_diff, rules/, analyzers/
+  application/             # import_pipeline, report_jobs, ai_pipeline/, report_diff, rules/
   infrastructure/          # database/, excel/, llm/, parsers/, queue/, secrets/, storage/
   api/                     # router.py (core), pipeline_router.py, errors.py, schemas.py
 config/
@@ -134,6 +184,7 @@ alembic/
   versions/001_initial_schema.py
 docs/
   ARCHITECTURE.md
+  AGENT_PIPELINE.md
 docker-compose.yml
 Dockerfile
 .env.example
@@ -162,10 +213,27 @@ arq app.infrastructure.queue.worker.WorkerSettings
 | `SN_REPORT_LOCALE` | `en` | `en`\|`fa` default report language |
 | `SN_CONTRADICTION_SCORE_RATIO_THRESHOLD` | `0.8` | Flag threshold |
 | `SN_FLAG_POLICY` | `phase_window_then_case_wide` | Detection scope |
-| `GEMINI_API_KEY` | — | Narrative generation |
+| `GEMINI_API_KEY` | — | Narrative + AI pipeline (when `SN_AI_PROVIDER=gemini`) |
+| `OPENAI_API_KEY` | — | AI pipeline when `SN_AI_PROVIDER=openai` |
 | `SN_SYNC_JOBS` | `false` | Inline stages (dev/test) |
 | `SN_SKIP_OBJECT_STORAGE` | `false` | Bypass MinIO (dev/test) |
-| `SN_RATE_LIMIT` | `60/minute` | Per-IP rate limit |
+| `SN_RATE_LIMIT` | `120/minute` | Per-IP rate limit |
+
+### Task 5 AI pipeline (`SN_AI_*`)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `SN_AI_PROVIDER` | `gemini` | Primary LLM (`gemini`, `openai`, `anthropic`, `ollama`; aliases `gpt`, `claude`) |
+| `SN_AI_FALLBACK_PROVIDER` | — | Secondary provider if primary fails |
+| `SN_AI_MODEL` | provider default | Model id (e.g. `gemini-2.5-flash`, `gpt-4o-mini`) |
+| `SN_AI_TEMPERATURE` | `0.3` | Generation temperature |
+| `SN_AI_MAX_TOKENS` | `2048` | Max tokens per LLM call |
+| `SN_AI_TIMEOUT_SECONDS` | `60` | HTTP timeout for LLM adapters |
+| `SN_AI_ENABLE_CACHE` | `true` | In-process LLM response cache |
+| `SN_AI_CACHE_TTL_SECONDS` | `3600` | Cache entry TTL |
+| `SN_AI_ENABLE_REVIEW` | `true` | Run Quality Reviewer agent |
+| `SN_AI_MAX_PARALLEL` | `4` | Max concurrent phase analyzers |
+| `SN_AI_MAX_RETRIES` | `2` | BaseAgent LLM retry count |
 
 ### Tests
 
@@ -191,4 +259,4 @@ pytest tests --cov=app --cov-report=html  # coverage report
 
 ---
 
-*README v3.0 — report JSON localized via `report_locale`.*
+*README v3.1 — Task 5 AI pipeline (`POST /v1/reports/generate-ai`) documented.*

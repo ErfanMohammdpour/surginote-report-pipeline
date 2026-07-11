@@ -59,6 +59,28 @@ class Settings(BaseSettings):
     gemini_temperature: float = 0.35
     gemini_timeout_seconds: float = 120.0
 
+    # Task 5 AI pipeline — switch provider with SN_AI_PROVIDER (gemini | openai | anthropic | ollama)
+    ai_provider: Literal["gemini", "openai", "anthropic", "ollama"] = Field(
+        default="gemini",
+        validation_alias=AliasChoices("SN_AI_PROVIDER", "AI_PROVIDER"),
+    )
+    ai_fallback_provider: Literal["gemini", "openai", "anthropic", "ollama"] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SN_AI_FALLBACK_PROVIDER", "AI_FALLBACK_PROVIDER"),
+    )
+    ai_model: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SN_AI_MODEL", "AI_MODEL"),
+    )
+    ai_temperature: float = Field(default=0.3, validation_alias=AliasChoices("SN_AI_TEMPERATURE"))
+    ai_max_tokens: int = Field(default=2048, validation_alias=AliasChoices("SN_AI_MAX_TOKENS"))
+    ai_timeout_seconds: float = Field(default=60.0, validation_alias=AliasChoices("SN_AI_TIMEOUT_SECONDS"))
+    ai_enable_cache: bool = Field(default=True, validation_alias=AliasChoices("SN_AI_ENABLE_CACHE"))
+    ai_cache_ttl_seconds: int = Field(default=3600, validation_alias=AliasChoices("SN_AI_CACHE_TTL_SECONDS"))
+    ai_enable_review: bool = Field(default=True, validation_alias=AliasChoices("SN_AI_ENABLE_REVIEW"))
+    ai_max_parallel: int = Field(default=4, validation_alias=AliasChoices("SN_AI_MAX_PARALLEL"))
+    ai_max_retries: int = Field(default=2, validation_alias=AliasChoices("SN_AI_MAX_RETRIES"))
+
     webhook_signing_key: str | None = None
     webhook_max_retries: int = 3
     alert_webhook_url: str | None = None

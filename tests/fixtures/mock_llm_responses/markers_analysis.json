@@ -1,0 +1,12 @@
+{
+  "commentary_insights": [
+    "Comments during rhexis were positive and aligned with high skill scores.",
+    "Phaco warning about chatter was followed by a recovery comment."
+  ],
+  "emotion_trend": "mixed",
+  "critical_events": [
+    {"timestamp": 185.0, "label": "Chatter", "summary": "Phaco handpiece chatter noted"}
+  ],
+  "alignment_with_scores": "Commentary generally aligns with recorded scores; chatter note explains transient phaco concern.",
+  "confidence_score": 0.87
+}

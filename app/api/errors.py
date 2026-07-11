@@ -13,6 +13,12 @@ from fastapi.responses import JSONResponse
 _DEBUG = os.getenv("SN_DEBUG", "false").lower() in ("1", "true", "yes")
 
 from app.domain.errors import (
+    AgentError,
+    AgentInputError,
+    AgentOutputParseError,
+    AgentRateLimitError,
+    AgentUpstreamError,
+    AgentValidationError,
     DomainError,
     IdempotencyConflict,
     ParseError,
@@ -87,6 +93,39 @@ def register_exception_handlers(app: FastAPI) -> None:
             },
         ))
 
+    def _agent_body(req: Request, exc: AgentError) -> dict:
+        req_id = getattr(getattr(req, "state", None), "request_id", "-")
+        body: dict = {"code": exc.code, "message": str(exc), "request_id": req_id}
+        if exc.agent:
+            body["agent"] = exc.agent
+        if isinstance(exc, AgentValidationError) and exc.errors:
+            body["errors"] = exc.errors
+        return body
+
+    @app.exception_handler(AgentValidationError)
+    async def agent_validation_error(req: Request, exc: AgentValidationError):
+        return _sec(JSONResponse(status_code=422, content=_agent_body(req, exc)))
+
+    @app.exception_handler(AgentInputError)
+    async def agent_input_error(req: Request, exc: AgentInputError):
+        return _sec(JSONResponse(status_code=422, content=_agent_body(req, exc)))
+
+    @app.exception_handler(AgentOutputParseError)
+    async def agent_output_parse_error(req: Request, exc: AgentOutputParseError):
+        return _sec(JSONResponse(status_code=422, content=_agent_body(req, exc)))
+
+    @app.exception_handler(AgentRateLimitError)
+    async def agent_rate_limit_error(req: Request, exc: AgentRateLimitError):
+        return _sec(JSONResponse(status_code=429, content=_agent_body(req, exc)))
+
+    @app.exception_handler(AgentUpstreamError)
+    async def agent_upstream_error(req: Request, exc: AgentUpstreamError):
+        return _sec(JSONResponse(status_code=502, content=_agent_body(req, exc)))
+
+    @app.exception_handler(AgentError)
+    async def agent_error(req: Request, exc: AgentError):
+        return _sec(JSONResponse(status_code=400, content=_agent_body(req, exc)))
+
     @app.exception_handler(DomainError)
     async def domain_error(_: Request, exc: DomainError):
         return _sec(JSONResponse(
@@ -118,6 +157,11 @@ def register_exception_handlers(app: FastAPI) -> None:
             return _sec(JSONResponse(
                 status_code=400,
                 content={"code": "gemini_api_key_missing", "message": "Set GEMINI_API_KEY in .env"},
+            ))
+        if "openai_api_key_missing" in msg:
+            return _sec(JSONResponse(
+                status_code=400,
+                content={"code": "openai_api_key_missing", "message": "Set OPENAI_API_KEY in .env"},
             ))
         logger.warning("value error in request: %s", msg)
         return _sec(JSONResponse(status_code=400, content={"code": "bad_request", "message": msg}))

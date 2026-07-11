@@ -1,0 +1,65 @@
+{
+  "_source": "Task 5 PDF section 4.1 — annotation_data from GET /videos/{id}/annotation-history",
+  "phases": [
+    {
+      "id": "phase_3",
+      "order": 3,
+      "name": "Rhexis",
+      "shortName": "Rhexis",
+      "description": "Continuous curvilinear capsulorhexis",
+      "color": "#8B5CF6",
+      "startTime": 30.5,
+      "endTime": 125.0,
+      "phacoMethod": null,
+      "source": "manual"
+    },
+    {
+      "id": "phase_4",
+      "order": 4,
+      "name": "Phacoemulsification",
+      "shortName": "Phaco",
+      "description": "Nuclear emulsification",
+      "color": "#10B981",
+      "startTime": 125.0,
+      "endTime": 280.0,
+      "phacoMethod": "divide_and_conquer",
+      "source": "manual"
+    }
+  ],
+  "metrics": {
+    "phase_3": [
+      {"id": "rhexis_1", "name": "Microscope use & visualization", "maxScore": 5},
+      {"id": "rhexis_2", "name": "Capsulorhexis size & centration", "maxScore": 5}
+    ],
+    "phase_4": [
+      {"id": "phaco_1", "name": "Chamber stability", "maxScore": 5},
+      {"id": "phaco_2", "name": "Efficient emulsification", "maxScore": 5}
+    ]
+  },
+  "scores": {
+    "phase_3": {"rhexis_1": 4.5, "rhexis_2": 3.0},
+    "phase_4": {"phaco_1": 4.0, "phaco_2": 2.5}
+  },
+  "markers": [
+    {
+      "id": "marker_1",
+      "type": "comment",
+      "timestamp": 45.0,
+      "label": "Good technique",
+      "text": "Smooth continuous tear",
+      "color": "#0ea5e9",
+      "createdAt": "2026-01-15T10:31:00Z"
+    },
+    {
+      "id": "marker_2",
+      "type": "warning",
+      "timestamp": 185.0,
+      "label": "Chatter",
+      "text": "Phaco handpiece chatter noted",
+      "color": "#f59e0b",
+      "createdAt": "2026-01-15T10:33:00Z"
+    }
+  ],
+  "version": 2,
+  "savedAt": "2026-01-15T10:35:00Z"
+}

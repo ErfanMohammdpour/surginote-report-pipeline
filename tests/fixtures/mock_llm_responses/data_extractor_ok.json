@@ -1,0 +1,9 @@
+{
+  "normalized_phases": [
+    {"id": "phase_rhexis", "order": 1, "name": "Rhexis", "startTime": 30.5, "endTime": 125.0}
+  ],
+  "normalized_markers": [],
+  "metrics": {"phase_rhexis": [{"id": "r1", "name": "Microscope use", "maxScore": 5}]},
+  "scores": {"phase_rhexis": {"r1": 5.0}},
+  "metadata": {"phase_count": 1, "marker_count": 0}
+}

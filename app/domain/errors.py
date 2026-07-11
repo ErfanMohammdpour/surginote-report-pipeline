@@ -22,5 +22,45 @@ class UploadError(DomainError):
         super().__init__(message)
 
 
+class AgentError(DomainError):
+    """Base error for AI pipeline agents."""
+
+    code: str = "agent_error"
+
+    def __init__(self, message: str, *, agent: str | None = None):
+        self.agent = agent
+        super().__init__(message)
+
+
+class AgentValidationError(AgentError):
+    code = "agent_validation_error"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        agent: str | None = None,
+        errors: list[dict] | None = None,
+    ):
+        self.errors = errors or []
+        super().__init__(message, agent=agent)
+
+
+class AgentInputError(AgentError):
+    code = "agent_input_error"
+
+
+class AgentOutputParseError(AgentError):
+    code = "agent_output_parse_error"
+
+
+class AgentUpstreamError(AgentError):
+    code = "agent_upstream_error"
+
+
+class AgentRateLimitError(AgentError):
+    code = "agent_rate_limited"
+
+
 class IdempotencyConflict(DomainError):
     """Same idempotency key, different payload hash."""

@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.application.ai_pipeline.schemas import AIConfig, MarkerInput, MetricInput, PhaseInput
+
 
 class ImportResponse(BaseModel):
     case_id: str = Field(description="Stable case id for follow-up API calls")
@@ -96,3 +98,41 @@ class NarrativeResponse(BaseModel):
     locale: Literal["en", "fa"]
     finish_reason: str | None = None
     provider_raw: dict[str, Any] | None = None
+
+
+class GenerateReportSettings(BaseModel):
+    tone: int = Field(default=2, ge=0, le=4, description="0=Very Critical … 4=Very Encouraging")
+    emphasis: list[str] = Field(default_factory=lambda: ["technical", "safety"])
+    locale: Literal["en", "fa"] = Field(default="en")
+    ai_config: AIConfig | None = None
+
+
+class GenerateReportRequest(BaseModel):
+    """Platform annotation_data + report settings (PDF §8)."""
+
+    phases: list[PhaseInput] = Field(min_length=1)
+    metrics: dict[str, list[MetricInput]] = Field(default_factory=dict)
+    scores: dict[str, dict[str, float]] = Field(default_factory=dict)
+    markers: list[MarkerInput] = Field(default_factory=list)
+    settings: GenerateReportSettings = Field(default_factory=GenerateReportSettings)
+    version: int | None = None
+    savedAt: str | None = None
+
+
+class AIReportMetadata(BaseModel):
+    pipeline: str = "ai-agent-v2"
+    agents_used: list[str] = Field(default_factory=list)
+    model: str = ""
+    tokens_used: dict[str, int] = Field(default_factory=dict)
+    generation_time_seconds: float = 0.0
+    confidence_score: float = Field(default=0.0, ge=0, le=1)
+    fallback_used: bool = False
+    fallback_reason: str | None = None
+    cache_hits: int = 0
+    quality_score: float | None = Field(default=None, ge=0, le=1)
+
+
+class AIReportResponse(BaseModel):
+    content: str
+    generatedAt: str
+    metadata: AIReportMetadata

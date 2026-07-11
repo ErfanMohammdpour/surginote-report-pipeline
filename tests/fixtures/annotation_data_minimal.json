@@ -1,0 +1,29 @@
+{
+  "_scenario": "S2 — PDF section 9: 1 phase, no markers, tone=4",
+  "phases": [
+    {
+      "id": "phase_rhexis",
+      "order": 1,
+      "name": "Rhexis",
+      "shortName": "Rhexis",
+      "description": "Continuous curvilinear capsulorhexis",
+      "color": "#8B5CF6",
+      "startTime": 0.0,
+      "endTime": 90.0,
+      "phacoMethod": null,
+      "source": "manual"
+    }
+  ],
+  "metrics": {
+    "phase_rhexis": [
+      {"id": "r1", "name": "Microscope use", "maxScore": 5},
+      {"id": "r2", "name": "Capsulorhexis size", "maxScore": 5}
+    ]
+  },
+  "scores": {
+    "phase_rhexis": {"r1": 4.0, "r2": 4.5}
+  },
+  "markers": [],
+  "version": 2,
+  "savedAt": "2026-01-15T10:00:00Z"
+}

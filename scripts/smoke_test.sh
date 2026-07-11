@@ -80,4 +80,44 @@ REPLAY=$(curl -sS -D - -o /dev/null -X POST "$BASE/v1/imports" \
   -F "upload=@$XLSX" 2>&1 | grep -i x-idempotent-replay || true)
 echo "${REPLAY:-no replay header}"
 
+echo "== POST /v1/reports/generate-ai"
+AI_FIXTURE="${AI_FIXTURE:-$ROOT/tests/fixtures/annotation_data_minimal.json}"
+if [[ "${SN_SKIP_AI_SMOKE:-}" == "true" ]]; then
+  echo "skipped (SN_SKIP_AI_SMOKE=true)"
+elif [[ ! -f "$AI_FIXTURE" ]]; then
+  echo "skipped (fixture missing: $AI_FIXTURE)"
+else
+  AI_JSON=$(python3 - <<PY
+import json
+from pathlib import Path
+p = Path("$AI_FIXTURE")
+body = json.loads(p.read_text(encoding="utf-8"))
+body.pop("_comment", None)
+body["settings"] = {
+    "tone": 4,
+    "emphasis": ["technical"],
+    "locale": "en",
+    "ai_config": {"enable_review": False, "enable_cache": True},
+}
+print(json.dumps(body))
+PY
+)
+  AI_RESP=$(curl -sS -w "\n%{http_code}" -X POST "$BASE/v1/reports/generate-ai" \
+    -H "Content-Type: application/json" \
+    -d "$AI_JSON")
+  AI_HTTP=$(echo "$AI_RESP" | tail -n1)
+  AI_BODY=$(echo "$AI_RESP" | sed '$d')
+  echo "HTTP $AI_HTTP"
+  echo "$AI_BODY" | python3 -c "
+import sys, json
+r = json.load(sys.stdin)
+print('pipeline', r.get('metadata', {}).get('pipeline'))
+print('fallback_used', r.get('metadata', {}).get('fallback_used'))
+print('content_head', (r.get('content') or '')[:80].replace(chr(10), ' '))
+"
+  if [[ "$AI_HTTP" != "200" ]]; then
+    echo "generate-ai failed (OK if no LLM key — expect fallback_used=true)"
+  fi
+fi
+
 echo "Done."

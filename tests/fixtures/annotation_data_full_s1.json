@@ -1,0 +1,78 @@
+{
+  "_scenario": "S1 — PDF section 9: 3 phases + 4 markers, tone=2",
+  "phases": [
+    {
+      "id": "phase_rhexis",
+      "order": 1,
+      "name": "Rhexis",
+      "shortName": "Rhexis",
+      "description": "Continuous curvilinear capsulorhexis",
+      "color": "#8B5CF6",
+      "startTime": 30.5,
+      "endTime": 125.0,
+      "phacoMethod": null,
+      "source": "manual"
+    },
+    {
+      "id": "phase_phaco",
+      "order": 2,
+      "name": "Phacoemulsification",
+      "shortName": "Phaco",
+      "description": "Nuclear emulsification",
+      "color": "#10B981",
+      "startTime": 125.0,
+      "endTime": 280.0,
+      "phacoMethod": "divide_and_conquer",
+      "source": "manual"
+    },
+    {
+      "id": "phase_ia",
+      "order": 3,
+      "name": "I&A",
+      "shortName": "I&A",
+      "description": "Irrigation and aspiration",
+      "color": "#6366F1",
+      "startTime": 280.0,
+      "endTime": 360.0,
+      "phacoMethod": null,
+      "source": "manual"
+    }
+  ],
+  "metrics": {
+    "phase_rhexis": [
+      {"id": "r1", "name": "Microscope use", "maxScore": 5},
+      {"id": "r2", "name": "Capsulorhexis centration", "maxScore": 5},
+      {"id": "r3", "name": "Capsulorhexis size", "maxScore": 5},
+      {"id": "r4", "name": "Hydrodissection", "maxScore": 5},
+      {"id": "r5", "name": "Tear continuity", "maxScore": 5},
+      {"id": "r6", "name": "Visualization", "maxScore": 5}
+    ],
+    "phase_phaco": [
+      {"id": "p1", "name": "Chamber stability", "maxScore": 5},
+      {"id": "p2", "name": "Groove construction", "maxScore": 5},
+      {"id": "p3", "name": "Emulsification efficiency", "maxScore": 5},
+      {"id": "p4", "name": "Cortex removal", "maxScore": 5},
+      {"id": "p5", "name": "Instrument handling", "maxScore": 5},
+      {"id": "p6", "name": "Wound protection", "maxScore": 5},
+      {"id": "p7", "name": "Fluidics management", "maxScore": 5}
+    ],
+    "phase_ia": [
+      {"id": "i1", "name": "Cortex aspiration", "maxScore": 5},
+      {"id": "i2", "name": "Capsule polish", "maxScore": 5},
+      {"id": "i3", "name": "Wound closure prep", "maxScore": 5}
+    ]
+  },
+  "scores": {
+    "phase_rhexis": {"r1": 5.4, "r2": 4.0, "r3": 4.0, "r4": 5.2, "r5": 5.4, "r6": 4.0},
+    "phase_phaco": {"p1": 5.4, "p2": 4.0, "p3": 5.0, "p4": 4.0, "p5": 5.4, "p6": 5.2, "p7": 4.0},
+    "phase_ia": {"i1": 4.0, "i2": 5.2, "i3": 5.4}
+  },
+  "markers": [
+    {"id": "m1", "type": "comment", "timestamp": 45.0, "label": "Good rhexis", "text": "Smooth continuous tear", "color": "#0ea5e9", "createdAt": "2026-01-15T10:31:00Z"},
+    {"id": "m2", "type": "comment", "timestamp": 60.0, "label": "Centration", "text": "Well centered capsulorhexis", "color": "#0ea5e9", "createdAt": "2026-01-15T10:32:00Z"},
+    {"id": "m3", "type": "warning", "timestamp": 185.0, "label": "Chatter", "text": "Phaco handpiece chatter noted", "color": "#f59e0b", "createdAt": "2026-01-15T10:33:00Z"},
+    {"id": "m4", "type": "comment", "timestamp": 200.0, "label": "Recovery", "text": "Good recovery after chatter", "color": "#0ea5e9", "createdAt": "2026-01-15T10:34:00Z"}
+  ],
+  "version": 2,
+  "savedAt": "2026-01-15T10:35:00Z"
+}

@@ -12,9 +12,11 @@ from app.api.locale_util import resolve_report_locale
 from app.api.upload_util import read_upload_bounded
 from app.domain.security import sanitize_filename
 from app.api.schemas import (
+    AIReportResponse,
     CaseDetailResponse,
     CaseNarrativeRequest,
     CommentDTO,
+    GenerateReportRequest,
     ImportResponse,
     NarrativeRequest,
     NarrativeResponse,
@@ -22,6 +24,7 @@ from app.api.schemas import (
     ReportEnvelope,
     SkillDTO,
 )
+from app.application.ai_pipeline.service import run_ai_report
 from app.application.import_pipeline import process_import
 from app.application.narrative import synthesize_markdown_report
 from app.application.report_pipeline import REPORT_SCHEMA_VERSION, build_json_report
@@ -270,5 +273,15 @@ def get_router() -> APIRouter:
             include_provider_raw=body.include_provider_raw,
         )
         return _narrative_from_report_payload(payload, pseudo)
+
+    @r.post(
+        "/reports/generate-ai",
+        response_model=AIReportResponse,
+        tags=["reports"],
+        summary="Generate clinical Markdown report via multi-agent AI pipeline",
+    )
+    async def reports_generate_ai(body: GenerateReportRequest) -> AIReportResponse:
+        result = await run_ai_report(body)
+        return AIReportResponse.model_validate(result)
 
     return r
