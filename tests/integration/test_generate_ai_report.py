@@ -183,6 +183,14 @@ def test_generate_ai_validation_bad_marker_type(client):
 
 
 @pytest.mark.integration
+def test_generate_ai_openapi_registered(client):
+    spec = client.get("/openapi.json").json()
+    assert "/v1/reports/generate-ai" in spec.get("paths", {})
+    post = spec["paths"]["/v1/reports/generate-ai"]["post"]
+    assert post["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith("AIReportResponse")
+
+
+@pytest.mark.integration
 def test_generate_ai_rate_limiter_registered(client):
     assert getattr(client.app.state, "limiter", None) is not None
 

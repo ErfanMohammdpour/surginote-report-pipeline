@@ -136,3 +136,16 @@ class AIReportResponse(BaseModel):
     content: str
     generatedAt: str
     metadata: AIReportMetadata
+
+
+# Re-export pipeline types used by the public API (OpenAPI / clients).
+__all__ = [
+    "AIConfig",
+    "AIReportMetadata",
+    "AIReportResponse",
+    "GenerateReportRequest",
+    "GenerateReportSettings",
+    "MarkerInput",
+    "MetricInput",
+    "PhaseInput",
+]

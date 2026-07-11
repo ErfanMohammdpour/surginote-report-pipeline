@@ -37,6 +37,10 @@ tests/_pytest.sqlite
 tests/_pytest.sqlite*
 tests/_minimal_export.xlsx
 report_last.json
+_bad_import.json
+
+# Codebase memory (local MCP index)
+.codebase-memory/
 
 # Data
 data/*.db

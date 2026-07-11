@@ -28,6 +28,7 @@ Balanced AI-composed summary for S1 with holistic cross-phase assessment.
 **Skills Assessment:**
 
 | Skill | Score | Status |
+|-------|-------|--------|
 | Capsulorhexis centration | 4.0/5 | ✓ Strength |
 
 Rhexis demonstrated controlled continuous curvilinear technique.

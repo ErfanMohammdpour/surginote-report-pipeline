@@ -14,7 +14,7 @@
 
 Before marking **any** item complete:
 
-- [x] **Pass 1 — Logic:** unit/integration tests for phases 0–4 pass; S1–S4 in `test_scenarios.py` + `test_generate_ai_report.py`  
+- [x] **Pass 1 — Logic:** unit/integration tests for phases 0–5 pass; S1–S4 in `test_scenarios.py` + `test_generate_ai_report.py`  
 - [x] **Pass 2 — Errors:** 6 agent exceptions + handlers + HTTP tests in `test_agent_errors.py`  
 - [x] **Pass 3 — Regression:** `pytest tests/unit/test_ai_pipeline` + integration generate-ai green; Task 3 code untouched  
 - [x] **Pass 4 — Quality:** type hints on public API; structured log per agent; no secrets in logs  
@@ -115,7 +115,7 @@ Fixtures ready: `annotation_data_sample.json`, `annotation_data_full_s1.json`, `
 
 - [x] **1.10** `tests/unit/test_llm_client.py` — mock httpx  
 - [x] **1.11** `infrastructure/llm/llm_client.py` — `chat()`, `count_tokens()`; gemini impl wraps `gemini_rest`  
-- [x] **1.12** Stub adapters openai/anthropic/ollama raise `NotImplementedError` with clear message  
+- [x] **1.12** OpenAI adapter implemented; Anthropic/Ollama stubs raise `NotImplementedError` with clear message  
 - [x] **1.13** Secondary provider fallback when configured  
 
 ### 1D — Base agent & prompts
@@ -174,7 +174,7 @@ For **each** agent: write test file first → implement → triple-check.
 - [x] **5.2** `TASK5_REPORT.md` — technical report for lead  
 - [x] **5.3** README — generate-ai section + env table  
 - [x] **5.4** Re-index codebase-memory ADR  
-- [x] **5.5** PR to `main` — `feat/task5-ai-pipeline`  
+- [x] **5.5** PR to `main` — branch `feat/task5-ai-pipeline` pushed; open at GitHub compare URL (see `docs/PR_TASK5.md`)  
 
 ---
 

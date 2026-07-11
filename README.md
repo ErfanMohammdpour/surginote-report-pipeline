@@ -118,6 +118,8 @@ pytest tests/unit/test_ai_pipeline/ --noconftest -q
 pytest tests/integration/test_generate_ai_report.py -q
 pytest tests/unit/test_ai_pipeline/ --noconftest \
   --cov=app/application/ai_pipeline --cov-fail-under=90
+# or one shot:
+./scripts/run_task5_tests.sh
 ```
 
 ---
