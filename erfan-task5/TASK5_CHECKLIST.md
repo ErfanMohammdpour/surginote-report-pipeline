@@ -174,7 +174,7 @@ For **each** agent: write test file first → implement → triple-check.
 - [x] **5.2** `TASK5_REPORT.md` — technical report for lead  
 - [x] **5.3** README — generate-ai section + env table  
 - [x] **5.4** Re-index codebase-memory ADR  
-- [ ] **5.5** PR to `main`  
+- [x] **5.5** PR to `main` — `feat/task5-ai-pipeline`  
 
 ---
 
