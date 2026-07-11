@@ -88,8 +88,7 @@ Content-Type: application/json
 
 **Response:** `{ "content": "<markdown>", "generatedAt": "<ISO8601>", "metadata": { ... } }`
 
-See **`sample_report_ai.md`** for a full S1 example and metadata field reference.  
-Technical delivery report: **`TASK5_REPORT.md`**.
+See **`docs/AGENT_PIPELINE.md`** for architecture, metadata fields, and env vars. OpenAPI: `/docs` → `POST /v1/reports/generate-ai`.
 
 ### Quick curl (minimal fixture)
 

@@ -15,7 +15,17 @@ htmlcov/
 coverage.xml
 *.coverage
 
-# Local delivery / scratch (not for repo)
+# Local Task 5 / delivery scratch (keep locally, not in repo)
+erfan-task5/
+TASK5_REPORT.md
+sample_report_ai.md
+docs/PR_TASK5.md
+docs/PR_TASK5_BODY.md
+docs/DELIVERY_REPORT_FA.md
+SurgiNote_Report_Service_v3_delivery.pdf
+scripts/build_delivery.ps1
+scripts/build_delivery_pdf.sh
+scripts/capture_delivery_samples.sh
 CHECKLIST.md
 report_last.json
 *.log

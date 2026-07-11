@@ -1,7 +1,5 @@
-# Agent Pipeline ADR v2 — Task 5 (PDF-verified)
+# Agent Pipeline ADR v2 — Task 5
 
-**Spec:** `erfan-task5/تسک-5-عرفان.pdf` (32 pages)  
-**Analysis:** `erfan-task5/TASK5_ANALYSIS.md`  
 **Status:** Phases 0–5 complete · delivered
 
 ## PURPOSE
@@ -51,5 +49,4 @@ Six domain exceptions → `api/errors.py`. Orchestrator never crashes without fa
 
 ## OPEN
 
-- [ ] Lead deadline (0.7)  
-- [x] Phase 5 delivery docs + `sample_report_ai.md`  
+- [ ] Lead deadline / production provider / merge target (team decision)  
